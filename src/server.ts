@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { SharedUsageService } from './shared-service.js';
 import { messages, type UsageResult } from './contract.js';
 
-const server = new McpServer({ name: 'cotemu-usage-ball', version: '0.3.0' });
+const server = new McpServer({ name: 'cotemu-usage-ball', version: '0.3.1' });
 const uri = 'ui://cotemu-usage-ball/v1';
 const cache = join(process.env.LOCALAPPDATA || join(homedir(), '.cache'), 'cotemu-usage-ball', 'cache');
 const service = new SharedUsageService(cache);
