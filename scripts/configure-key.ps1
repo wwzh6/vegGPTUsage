@@ -8,6 +8,9 @@ $form.Size = New-Object Drawing.Size(460,190)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
 $form.MaximizeBox = $false
+$form.TopMost = $true
+$form.ShowInTaskbar = $true
+$form.WindowState = [Windows.Forms.FormWindowState]::Normal
 $label = New-Object Windows.Forms.Label
 $label.Text = 'Enter the account API key (not a team code).'
 $label.SetBounds(20,15,410,25)
@@ -26,7 +29,7 @@ $form.CancelButton = $cancel
 $save.Add_Click({
     $keyValue = $inputBox.Text.Trim()
     if ($keyValue -notmatch '^(sk-ctm-|ctm_)[A-Za-z0-9_-]+$') {
-        [Windows.Forms.MessageBox]::Show('Use an account API key beginning sk-ctm- or ctm_.', 'Invalid key format') | Out-Null
+        [Windows.Forms.MessageBox]::Show($form, 'Use an account API key beginning sk-ctm- or ctm_.', 'Invalid key format') | Out-Null
         return
     }
     try {
@@ -35,12 +38,16 @@ $save.Add_Click({
         $form.DialogResult = [Windows.Forms.DialogResult]::OK
         $form.Close()
     } catch {
-        [Windows.Forms.MessageBox]::Show('Unable to save the user environment variable.', 'Configuration failed') | Out-Null
+        [Windows.Forms.MessageBox]::Show($form, 'Unable to save the user environment variable.', 'Configuration failed') | Out-Null
     } finally { $keyValue = $null }
 })
 $form.Controls.AddRange(@($label,$inputBox,$save,$cancel))
+$form.Add_Shown({
+    $form.Activate()
+    $inputBox.Focus() | Out-Null
+})
 try {
     if ($form.ShowDialog() -eq [Windows.Forms.DialogResult]::OK) {
-        [Windows.Forms.MessageBox]::Show('Saved locally. Fully exit and restart Codex before opening the usage ring.', 'Configuration saved') | Out-Null
+        [Windows.Forms.MessageBox]::Show('Saved locally. Next, run configure-shared.py to configure GitHub synchronization.', 'Configuration saved') | Out-Null
     }
 } finally { $inputBox.Clear(); $form.Dispose() }
