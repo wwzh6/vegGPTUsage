@@ -1,11 +1,20 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { writeFile } from 'node:fs/promises';
+import { writeFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const binary = process.argv[2];
-const catalog = resolve(process.argv[3] ?? 'artifacts/local-marketplace/.agents/plugins/marketplace.json');
 if (!binary) throw new Error('Pass the local codex executable path.');
+let catalogPath = process.argv[3];
+if (!catalogPath) {
+  const listing = spawnSync(binary, ['plugin', 'marketplace', 'list', '--json'], { encoding: 'utf8', windowsHide: true });
+  if (listing.status !== 0) throw new Error('Unable to inspect installed marketplaces.');
+  const marketplace = JSON.parse(listing.stdout).marketplaces.find(item => item.name === 'cotemu-local');
+  if (!marketplace) throw new Error('The quota marketplace is not installed.');
+  catalogPath = resolve(marketplace.root, '.agents/plugins/marketplace.json');
+}
+const catalog = resolve(catalogPath);
+await mkdir('artifacts', { recursive: true });
 const child = spawn(binary, ['app-server', '--stdio'], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
 const pending = new Map(); let sequence = 0;
 createInterface({ input: child.stdout }).on('line', line => {
@@ -20,16 +29,22 @@ function call(method, params) {
   });
 }
 try {
-  await call('initialize', { clientInfo: { name: 'cotemu-install-check', version: '0.2.1' }, capabilities: { experimentalApi: true } });
+  await call('initialize', { clientInfo: { name: 'cotemu-install-check', version: '0.2.2' }, capabilities: { experimentalApi: true } });
   child.stdin.write(JSON.stringify({ method: 'initialized' }) + '\n');
   const plugin = await call('plugin/read', { marketplacePath: catalog, pluginName: 'cotemu-usage-ball' });
   console.log(JSON.stringify(plugin, null, 2));
   await writeFile('artifacts/installed-plugin.json', JSON.stringify(plugin, null, 2));
   const detail = plugin.plugin ?? plugin;
   const name = detail.mcpServers?.[0];
+  if (!name) throw new Error('The plugin MCP server was not discovered.');
   if (name) {
     const status = await call('mcpServerStatus/list', { serverName: name, detail: 'full' });
     console.log(JSON.stringify(status, null, 2));
     await writeFile('artifacts/installed-mcp-status.json', JSON.stringify(status, null, 2));
+    const entry = status.data?.find(item => item.name === name);
+    if (!entry || entry.toolsError || !entry.tools?.get_usage || !entry.tools?.open_usage_ball)
+      throw new Error('Quota tools failed discovery.');
+    if (!entry.tools.open_usage_ball._meta?.['openai/ui']?.entrypoints?.some(item => item.type === 'thread'))
+      throw new Error('The thread entrypoint was not discovered.');
   }
 } finally { child.stdin.end(); child.kill(); }

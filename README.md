@@ -43,6 +43,6 @@ npm test
 python scripts/package.py
 ```
 
-提交源码时一起提交 `dist/`、`runtime.sha256.json`。推送 `v0.2.1` 等与 manifest 一致的版本标签后，GitHub Actions 检查、测试、打包并创建 Release。不要在 GitHub 配置真实业务密钥；所有测试使用模拟数据。
+提交源码时一起提交 `dist/`、`runtime.sha256.json`。推送 `v0.2.2` 等与 manifest 一致的版本标签后，GitHub Actions 检查、测试、打包并创建 Release。不要在 GitHub 配置真实业务密钥；所有测试使用模拟数据。
 
 `node scripts/preview.mjs` 打开本地模拟宿主预览。验证边界见 [VERIFICATION.md](VERIFICATION.md)，依赖许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

@@ -6,7 +6,7 @@
 
 ## 执行步骤
 
-1. 将仓库克隆到用户可写的新目录；已有 checkout 时先检查本地修改，不能强制覆盖。若使用 Release ZIP，先核对同发布页 `.sha256`，再解压。
+1. 将仓库克隆到用户可写的新目录；已有 checkout 时先检查本地修改，不能强制覆盖。私有仓库需要登录有权限的 GitHub 账号，不要在聊天中索取访问令牌，也不要改变仓库可见性。若使用 Release ZIP，先核对同发布页 `.sha256`，再解压。
 2. 检查 Windows、Node.js ≥22 和 Codex 桌面端。缺少 Node 时可按用户授权安装官方 Node.js LTS；安装后重新解析 PATH。不要安装构建依赖。非 Windows 停止并说明安装脚本尚不支持。
 3. 在仓库目录运行 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1 -CheckOnly`。脚本自动寻找 Codex CLI；如有多个版本，以当前桌面应用对应版本为准，可传 `-CodexPath`。
 4. 运行同一命令，去掉 `-CheckOnly`。安装器校验预构建文件，注册本地 marketplace，并安装/升级插件。新安装默认目录为 `%LOCALAPPDATA%\VegetationQuota\marketplace`；已有安装复用其原目录并保留其他插件条目。技术 ID 保持 `cotemu-usage-ball@cotemu-local`，用于兼容旧安装。
@@ -26,7 +26,7 @@
 
   ```powershell
   New-Item -ItemType Directory artifacts -Force | Out-Null
-  node scripts/verify-install.mjs "<实际 codex.exe 路径>" "$env:LOCALAPPDATA/VegetationQuota/marketplace/.agents/plugins/marketplace.json"
+  node scripts/verify-install.mjs "<实际 codex.exe 路径>"
   ```
 
 - 成功标准：插件已启用，工具 `open_usage_ball` 和 `get_usage` 存在，`toolsError` 为 null。工具发现不等同于真实账号或原生界面已通过验证。
