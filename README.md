@@ -13,7 +13,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1
 node dist/check-access.mjs
 ```
 
-重新打开 Codex 后发送“打开植被组额度查询”。详见 [AI 安装工作流](docs/AI-INSTALL.md)。
+重新打开 Codex 后，从全局侧边栏或会话侧面板的插件入口打开“植被组额度查询”，无需每次发送对话。宿主未展示入口时可发送“打开植被组额度查询”。全局入口是启动快捷方式，不保证圆环嵌入左侧导航栏或跨重启常驻。详见 [AI 安装工作流](docs/AI-INSTALL.md)。
 
 ## 统一配置
 

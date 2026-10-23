@@ -49,7 +49,7 @@ test('prebuilt stdio server discovers tools and reports missing GitHub access wi
   const tools = (await client.listTools()).tools;
   assert.deepEqual(tools.map(tool => tool.name).sort(), ['get_usage', 'open_usage_ball']);
   const tool = tools.find(tool => tool.name === 'open_usage_ball');
-  assert.equal(tool._meta['openai/ui'].entrypoints[0].type, 'thread');
+  assert.deepEqual(tool._meta['openai/ui'].entrypoints.map(entry => entry.type).sort(), ['global', 'thread']);
   const value = await client.callTool({ name: 'open_usage_ball', arguments: {} });
   assert.equal(value.structuredContent.query.error, 'shared_auth_required');
   const resource = await client.readResource({ uri: tool._meta.ui.resourceUri });

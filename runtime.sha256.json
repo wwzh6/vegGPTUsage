@@ -1,12 +1,12 @@
 {
-  ".codex-plugin/plugin.json": "9a85d32e648814388f9040c1278dbee1ea4b4511e1ba9556b9167cd2ca390768",
+  ".codex-plugin/plugin.json": "fbd8b7a8711ec20472901627d9d90e0089bb13afc18219d4bc600ead4ccb4272",
   ".mcp.json": "2cfabe951afd1346a1e48b253c703761ed113a9941661cb4da4650af062cb1a7",
   "assets/icon.svg": "f736458640539f7db87e116b1d9bd87b9db5804082e6630b91f827c1e2ea8f14",
   "dist/check-access.mjs": "72bacfdbc6bb064cecb16e074a18a01482e5efcbe3ab18f600d8bac174fadd8c",
-  "dist/server.mjs": "cf27a197f027f0eafe7a2f78e3265f365c98736afe55550d6e5522027c777f4b",
+  "dist/server.mjs": "8b1dfbd6b32d0d1821c9a49f9fb55ed9b480ed036bd2103f49923c76afc011b2",
   "dist/sync.mjs": "d78501e468aeae6f049b90f09cc4eda9d2a4cc4f0a938efb1252c5d3f629eca5",
-  "dist/usage-ball.html": "7cbb186cb44814c0aa92972d8d5b529f7fde740348bc4672d6719635cabc4766",
+  "dist/usage-ball.html": "c32ce375f7be76bcaacc3e1bc5be5b591e2b8148f92f8a9dc5ff877b8304fb1a",
   "mcp.json": "7e1d320d2b4f7d824c0a3c00cec1a98306569b396e7611422e4c69fb2a561d54",
-  "plugin.json": "ef002d12736b7c8f986817197c9e9e9e3919b902682ab657d75a9e978a90968d",
+  "plugin.json": "9deedaa9c9736b592c23ff604997b0a6f1541a953cca09760dcc388d2b895138",
   "skills/cotemu-usage/SKILL.md": "3d3b4b365cf7d3b194813304be556d48907359485b19e1c2e3f51f5c8976108e"
 }

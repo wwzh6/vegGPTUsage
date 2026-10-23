@@ -14,7 +14,7 @@
 4. 在仓库目录运行 `node dist/check-access.mjs`。脚本只检查仓库读取权限，不输出凭证。失败时先处理本地登录、仓库权限或网络，不得宣称部署后已经能查看。
 5. 运行 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1 -CheckOnly`，通过后去掉 `-CheckOnly` 安装。安装器自动寻找 Codex CLI，必要时传 `-CodexPath`。新安装保存到 `%LOCALAPPDATA%/VegetationQuota/marketplace`；升级复用原 marketplace 并保留其他插件。
 6. 运行 `node scripts/verify-install.mjs "<实际 codex.exe 路径>"` 检查工具发现。此检查不查询真实用量。工具发现成功不等于 GitHub 数据已同步。
-7. 重新打开 Codex，在会话入口选择“植被组额度查询”，或调用 `open_usage_ball`。不要强制结束正在工作的会话。核对是否显示真实数据；没有权限、同步延迟和原生面板无法操作须分别报告。
+7. 重新打开 Codex，在全局侧边栏或会话侧面板的插件入口选择“植被组额度查询”，或调用 `open_usage_ball`。入口直接调用工具，无需每次发送对话；打开后点击圆环即可刷新。全局入口不保证圆环嵌在左侧导航栏或跨重启常驻。不要强制结束正在工作的会话。核对是否显示真实数据；没有权限、同步延迟和原生面板无法操作须分别报告。
 
 ## 运行边界
 

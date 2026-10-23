@@ -60254,7 +60254,7 @@ var SharedUsageService = class {
 };
 
 // src/server.ts
-var server = new McpServer({ name: "cotemu-usage-ball", version: "0.3.1" });
+var server = new McpServer({ name: "cotemu-usage-ball", version: "0.3.2" });
 var uri = "ui://cotemu-usage-ball/v1";
 var cache = join2(process.env.LOCALAPPDATA || join2(homedir(), ".cache"), "cotemu-usage-ball", "cache");
 var service = new SharedUsageService(cache);
@@ -60277,7 +60277,7 @@ K3(server, "open_usage_ball", {
   description: "Open the shared seven-day account usage ring from the private GitHub snapshot. No account API key is needed on this computer. Data may be delayed.",
   inputSchema: {},
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
-  _meta: { ui: { resourceUri: uri }, "openai/ui": { entrypoints: [{ type: "thread" }] } }
+  _meta: { ui: { resourceUri: uri }, "openai/ui": { entrypoints: [{ type: "global" }, { type: "thread" }] } }
 }, async () => toolResult(await service.get(true)));
 server.registerTool("get_usage", {
   description: "Read the latest sanitized GitHub snapshot. refresh=true rereads the snapshot; it does not call the upstream account API or trigger a workflow.",

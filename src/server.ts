@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { SharedUsageService } from './shared-service.js';
 import { messages, type UsageResult } from './contract.js';
 
-const server = new McpServer({ name: 'cotemu-usage-ball', version: '0.3.1' });
+const server = new McpServer({ name: 'cotemu-usage-ball', version: '0.3.2' });
 const uri = 'ui://cotemu-usage-ball/v1';
 const cache = join(process.env.LOCALAPPDATA || join(homedir(), '.cache'), 'cotemu-usage-ball', 'cache');
 const service = new SharedUsageService(cache);
@@ -30,7 +30,7 @@ registerAppResource(server, 'usage-ball', uri, {}, async () => ({ contents: [{
 registerAppTool(server, 'open_usage_ball', {
   title: '植被组额度查询', description: 'Open the shared seven-day account usage ring from the private GitHub snapshot. No account API key is needed on this computer. Data may be delayed.',
   inputSchema: {}, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
-  _meta: { ui: { resourceUri: uri }, 'openai/ui': { entrypoints: [{ type: 'thread' }] } satisfies OpenAIUiToolMetadata },
+  _meta: { ui: { resourceUri: uri }, 'openai/ui': { entrypoints: [{ type: 'global' }, { type: 'thread' }] } satisfies OpenAIUiToolMetadata },
 }, async () => toolResult(await service.get(true)));
 
 server.registerTool('get_usage', {

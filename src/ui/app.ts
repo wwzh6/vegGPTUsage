@@ -3,7 +3,7 @@ import { UsageController } from './controller.js';
 import type { UsageResult } from '../contract.js';
 import '@openai/mcp-extensions/app/styles.css';
 
-const app = new App({ name: '植被组额度查询', version: '0.3.1' });
+const app = new App({ name: '植被组额度查询', version: '0.3.2' });
 const controller = new UsageController(document, {
   query: async refresh => {
     const response = await app.callServerTool({ name: 'get_usage', arguments: { refresh } });

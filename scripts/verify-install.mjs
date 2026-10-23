@@ -29,7 +29,7 @@ function call(method, params) {
   });
 }
 try {
-  await call('initialize', { clientInfo: { name: 'cotemu-install-check', version: '0.3.1' }, capabilities: { experimentalApi: true } });
+  await call('initialize', { clientInfo: { name: 'cotemu-install-check', version: '0.3.2' }, capabilities: { experimentalApi: true } });
   child.stdin.write(JSON.stringify({ method: 'initialized' }) + '\n');
   const plugin = await call('plugin/read', { marketplacePath: catalog, pluginName: 'cotemu-usage-ball' });
   console.log(JSON.stringify(plugin, null, 2));
@@ -44,7 +44,9 @@ try {
     const entry = status.data?.find(item => item.name === name);
     if (!entry || entry.toolsError || !entry.tools?.get_usage || !entry.tools?.open_usage_ball)
       throw new Error('Quota tools failed discovery.');
-    if (!entry.tools.open_usage_ball._meta?.['openai/ui']?.entrypoints?.some(item => item.type === 'thread'))
-      throw new Error('The thread entrypoint was not discovered.');
+    for (const type of ['global', 'thread']) {
+      if (!entry.tools.open_usage_ball._meta?.['openai/ui']?.entrypoints?.some(item => item.type === type))
+        throw new Error(`The ${type} entrypoint was not discovered.`);
+    }
   }
 } finally { child.stdin.end(); child.kill(); }
