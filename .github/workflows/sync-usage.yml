@@ -1,0 +1,27 @@
+name: Sync shared quota
+on:
+  schedule:
+    - cron: '7,17,27,37,47,57 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: shared-quota-sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Publish sanitized account usage
+        env:
+          COTEMU_API_KEY: ${{ secrets.COTEMU_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          VEGETATION_MANUAL_REFRESH: ${{ github.event_name == 'workflow_dispatch' }}
+        run: node dist/sync.mjs

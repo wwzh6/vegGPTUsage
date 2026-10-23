@@ -1,10 +1,18 @@
 ---
 name: cotemu-usage
-description: Open or inspect 植被组额度查询 (Vegetation Group seven-day usage ring) when the user asks to view usage, open the ball, or check the seven-day reset time.
+description: Open 植被组额度查询 to view the group's centrally synchronized seven-day account usage or reset time.
 ---
 
-Call `open_usage_ball` with empty arguments to open the conversation panel. For a textual check, call `get_usage`; use `refresh: true` only for an explicit refresh.
+Call `open_usage_ball` with empty arguments to open the panel. For a text check,
+call `get_usage`; use `refresh: true` only when explicitly asked to refresh.
+A refresh reads the private GitHub snapshot, not the upstream account API.
 
-Describe this as the key's bound OpenAI account's shared seven-day usage, not personal spend, a balance, or guaranteed remaining capacity. Preserve unknown, reference-only, stale, and connection-error labels. Never substitute another account or use account resume time for the seven-day reset.
+Members need repository read access through local GitHub login. Do not ask them
+for COTEMU_API_KEY. The administrator configures one shared key in GitHub Actions
+Secrets. Never print credentials, publish the full account list, or inspect
+unrelated credentials. Shared data may be delayed and is not personal spending,
+a balance, or guaranteed remaining capacity. Preserve stale and unknown states.
 
-If the key is missing, ask the user to configure `COTEMU_API_KEY` in the environment of the desktop process and restart the app. Do not ask them to paste the key into chat or inspect unrelated credentials. The app handles refresh timers; do not create an automation or repeatedly call tools.
+The app handles timers; do not create an automation or repeatedly call tools.
+For missing GitHub access, use the repository installation workflow. Upstream key
+errors require administrator repair and a manual run of Sync shared quota.

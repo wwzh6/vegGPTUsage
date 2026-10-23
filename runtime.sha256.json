@@ -1,10 +1,12 @@
 {
-  ".codex-plugin/plugin.json": "26512b4b68016bd0757e7b898c270df99d5da1b2004962f4733286a8b35a346f",
-  ".mcp.json": "818d2cd7017f9956e5724913e880baacd30b75f2dd1e243ded113e16a1132bb9",
+  ".codex-plugin/plugin.json": "3cb4f3a9d9e05836c5b78fba520ee64987f9273c9fef34c96ebba4d18e7d2695",
+  ".mcp.json": "2cfabe951afd1346a1e48b253c703761ed113a9941661cb4da4650af062cb1a7",
   "assets/icon.svg": "f736458640539f7db87e116b1d9bd87b9db5804082e6630b91f827c1e2ea8f14",
-  "dist/server.mjs": "27dab9d9f723bd5641aa9bdabe835d53e1edbf2dc7dfddce89e5d237017a4ddc",
-  "dist/usage-ball.html": "013846b1a37e32e7fe68d0012e54c77926f7da7e0454fed296260fa96689e601",
+  "dist/check-access.mjs": "72bacfdbc6bb064cecb16e074a18a01482e5efcbe3ab18f600d8bac174fadd8c",
+  "dist/server.mjs": "1dde57bc5ed43801040b2bfab023d17bfc243da35e4b9b55de9af17cdfbc518b",
+  "dist/sync.mjs": "d78501e468aeae6f049b90f09cc4eda9d2a4cc4f0a938efb1252c5d3f629eca5",
+  "dist/usage-ball.html": "aa0109a9f6aa8a704eeaaf810b20723a6ffd17cdd47d2781c3619e5f41fe13cf",
   "mcp.json": "7e1d320d2b4f7d824c0a3c00cec1a98306569b396e7611422e4c69fb2a561d54",
-  "plugin.json": "ceb1dd051f6125247b57b02e00e85488d315a9229cc26fd6d6bbe31a1634d70c",
-  "skills/cotemu-usage/SKILL.md": "11a2c2cece5b343cafe174b7aae3ec35c2d8a96c602de446cc8140b04556b637"
+  "plugin.json": "7449983398c0e6d266193d336daac79ed73c201cc79ee2531655a4800a2fc63e",
+  "skills/cotemu-usage/SKILL.md": "3d3b4b365cf7d3b194813304be556d48907359485b19e1c2e3f51f5c8976108e"
 }

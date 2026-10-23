@@ -1,10 +1,10 @@
 {
   "name": "cotemu-usage-ball",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.19.0"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -14,16 +14,17 @@
     "package": "python scripts/package.py"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.32.1",
     "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@openai/mcp-extensions": "0.2.1",
+    "undici": "8.12.3",
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@sinonjs/fake-timers": "15.0.0",
     "@types/node": "26.6.5",
     "esbuild": "0.28.2",
-    "typescript": "7.0.2",
-    "@sinonjs/fake-timers": "15.0.0",
-    "jsdom": "27.0.1"
+    "jsdom": "27.0.1",
+    "typescript": "7.0.2"
   }
 }

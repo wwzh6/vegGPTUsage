@@ -1,37 +1,35 @@
 # 植被组额度查询
 
-Codex 会话侧面板中的七天用量圆环。界面只有两行：**已用百分比**和**重置倒计时**；点击刷新，每十分钟自动更新。
+统一账号的七天用量圆环：**已用百分比 + 重置倒计时**。管理员配置一次，成员电脑无需填写账号 API Key。
 
 ## 让 AI 安装
 
-把下面这段话发给目标电脑上的 AI：
+> 请安装 https://github.com/wwzh6/vegGPTUsage 的“植被组额度查询”。按 AGENTS.md 和 docs/AI-INSTALL.md 使用预构建文件安装，复用本机 GitHub 登录验证仓库读取权限，不要索取或配置 COTEMU_API_KEY。
 
-> 请按 https://github.com/wwzh6/vegGPTUsage 的 AGENTS.md 和 docs/AI-INSTALL.md 安装“植被组额度查询”，使用预构建文件。需要密钥时打开本地遮掩输入窗口，不要在聊天中索取密钥。完成后检查插件工具是否可用。
-
-支持 Windows、Node.js ≥22、支持会话 MCP App 入口的 Codex 桌面端。安装无需 npm 或 Python；完整步骤见 [AI 安装工作流](docs/AI-INSTALL.md)。源码已含 `dist/`，Release ZIP 也包含完整运行文件。
-
-手动安装，在仓库或解压目录执行：
+支持 Windows、Node.js ≥22.19 和 Git。仓库是私有的，成员需具备仓库读取权限；安装插件本身不会授予 GitHub 权限。运行文件已经构建，不需要 npm 或 Python。
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1 -ConfigureKey
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1
+node dist/check-access.mjs
 ```
 
-密钥保存后完全退出、重启 Codex，再发送“打开植被组额度查询”。
+重新打开 Codex 后发送“打开植被组额度查询”。详见 [AI 安装工作流](docs/AI-INSTALL.md)。
 
-## 密钥是什么
+## 统一配置
 
-`COTEMU_API_KEY` 是服务商“密钥管理”中创建、绑定具体账号的 API 密钥，常见格式 `sk-ctm-…`，旧格式 `ctm_…`。它不是队伍码，也不是 `ctm-team-…` 队伍管理令牌。每台电脑本地输入；不要放入聊天、仓库、命令行参数或安装包。
+管理员把绑定账号的 API Key 保存为仓库的 `COTEMU_API_KEY` Actions Secret。完整密钥不进入源码、安装包或成员电脑。配置方法见 [管理员设置](docs/ADMIN-SETUP.md)。
 
-该变量仅写入当前 Windows 用户环境变量，不是加密密钥库。多台电脑使用相同密钥时显示同一绑定账号的数据。
+GitHub Actions 按十分钟计划查询一次，只将整理后的用量、重置时间和查询状态发布到 `quota-data` 分支。任务受 GitHub 排程和 Actions 可用额度约束，可能延迟。客户端每十分钟检查更新，点击只读取最近的同步结果，不直接查询账号，也不触发工作流。
 
-## 显示规则
+## 显示与权限
 
-- 两色圆环表示已用/剩余比例；数据属于绑定账号，可能包含其他使用者，不代表个人花费、账单余额或实际可调用余量。
-- 查询失败保留旧百分比，第二行短提示、颜色与悬停信息标识状态。详细账号状态、更新时间及“仅供参考”放在悬停和无障碍文本中。
-- 十五秒内点击不重复请求；429 遵守冷却；401/403 暂停自动查询；隐藏停止轮询。关闭用面板原生按钮，或聚焦圆环按 Esc；宿主保留面板时点击圆环重开。
-- 只查询 `GET https://cotemu.com/api/open/accounts`，不调用队伍、写入或模型接口。接口依据：[官方说明](https://docs.cotemu.com/agent-api.md)。
+- 圆环保持两行。详细状态在悬停提示中；数据过时或同步失败保留旧值并标记。
+- 数据属于统一密钥绑定账号，可能包含其他使用者，不代表个人花费、账单余额或实际可调用余量。
+- 普通成员只读取私有仓库数据。管理员手动运行 `Sync shared quota` 可要求重新查询；鉴权失败后需管理员修复并手动重试。
+- 同步端仅访问账号只读接口，不使用队伍码、队伍管理令牌或模型接口。接口依据：https://docs.cotemu.com/agent-api.md
+- 隐藏停止客户端轮询；用面板原生按钮或聚焦圆环按 Esc 关闭。关闭客户端不影响组内统一同步任务。
 
-插件显示名称已改；内部 ID `cotemu-usage-ball@cotemu-local` 与环境变量名保留，兼容旧版本原地升级。缓存只含脱敏展示字段，位于 `%LOCALAPPDATA%/cotemu-usage-ball/cache`。
+内部插件 ID 保留 `cotemu-usage-ball@cotemu-local`，用于原地升级。旧版电脑需要升级到 0.3.0 才会改用共享数据。客户端缓存仅含脱敏数据；GitHub 凭证从 Git Credential Manager 或 GitHub CLI 读取，不写入缓存。
 
 ## 开发与发布
 
@@ -43,6 +41,4 @@ npm test
 python scripts/package.py
 ```
 
-提交源码时一起提交 `dist/`、`runtime.sha256.json`。推送 `v0.2.2` 等与 manifest 一致的版本标签后，GitHub Actions 检查、测试、打包并创建 Release。不要在 GitHub 配置真实业务密钥；所有测试使用模拟数据。
-
-`node scripts/preview.mjs` 打开本地模拟宿主预览。验证边界见 [VERIFICATION.md](VERIFICATION.md)，依赖许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+一起提交 `dist/`、`runtime.sha256.json`。版本标签触发测试和 Release 打包；统一查询工作流独立运行。验证记录见 [VERIFICATION.md](VERIFICATION.md)。

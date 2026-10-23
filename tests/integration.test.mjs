@@ -37,10 +37,12 @@ test('a lock left by a dead owner is recovered', async t => {
   assert.equal((await service.get(true)).data.usedPercent, 40);
 });
 
-test('prebuilt stdio server initializes, discovers both tools, opens resource, and handles missing key', async t => {
+test('prebuilt stdio server discovers tools and reports missing GitHub access without an account key', async t => {
   const root = await temp(t);
   const transport = new StdioClientTransport({ command: process.execPath, args: [resolve('dist/server.mjs')],
-    env: { PATH: process.env.PATH, SYSTEMROOT: process.env.SYSTEMROOT, LOCALAPPDATA: root, COTEMU_API_KEY: '' }, stderr: 'pipe' });
+    env: { PATH: process.env.PATH, SYSTEMROOT: process.env.SYSTEMROOT, LOCALAPPDATA: root, COTEMU_API_KEY: '',
+      GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null', GIT_CONFIG_NOSYSTEM: '1',
+      GH_CONFIG_DIR: join(root, 'github-unconfigured') }, stderr: 'pipe' });
   const client = new Client({ name: 'cotemu-acceptance', version: '1.0.0' });
   t.after(() => client.close());
   await client.connect(transport);
@@ -49,7 +51,7 @@ test('prebuilt stdio server initializes, discovers both tools, opens resource, a
   const tool = tools.find(tool => tool.name === 'open_usage_ball');
   assert.equal(tool._meta['openai/ui'].entrypoints[0].type, 'thread');
   const value = await client.callTool({ name: 'open_usage_ball', arguments: {} });
-  assert.equal(value.structuredContent.query.error, 'missing_key');
+  assert.equal(value.structuredContent.query.error, 'shared_auth_required');
   const resource = await client.readResource({ uri: tool._meta.ui.resourceUri });
   assert.equal(resource.contents[0].mimeType, 'text/html;profile=mcp-app');
   assert.match(resource.contents[0].text, /植被组额度查询/);

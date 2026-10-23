@@ -1,16 +1,16 @@
 param(
     [string]$MarketplaceRoot = (Join-Path $env:LOCALAPPDATA 'VegetationQuota/marketplace'),
     [string]$CodexPath,
-    [switch]$CheckOnly,
-    [switch]$ConfigureKey
+    [switch]$CheckOnly
 )
 $ErrorActionPreference = 'Stop'
 $sourceRoot = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
 $manifest = Get-Content -LiteralPath (Join-Path $sourceRoot 'plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
-if (-not $nodeCommand) { throw 'Install Node.js 22 or newer, then rerun this script.' }
+if (-not $nodeCommand) { throw 'Install Node.js 22.19 or newer, then rerun this script.' }
 $nodeVersion = & $nodeCommand.Source -p 'process.versions.node'
-if ($LASTEXITCODE -ne 0 -or [int]($nodeVersion -split '\.')[0] -lt 22) { throw 'Node.js 22 or newer is required.' }
+if ($LASTEXITCODE -ne 0 -or [version]$nodeVersion -lt [version]'22.19.0') { throw 'Node.js 22.19 or newer is required.' }
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Install Git and sign in to an account with read access to wwzh6/vegGPTUsage.' }
 if (-not $CodexPath) {
     $codexCommand = Get-Command codex -ErrorAction SilentlyContinue
     if ($codexCommand) { $CodexPath = $codexCommand.Source }
@@ -82,6 +82,4 @@ $catalog = @{
 if ($LASTEXITCODE -ne 0) { throw 'Marketplace registration failed.' }
 & $CodexPath plugin add 'cotemu-usage-ball@cotemu-local' --json
 if ($LASTEXITCODE -ne 0) { throw 'Plugin installation failed.' }
-if ($ConfigureKey) { & (Join-Path $PSScriptRoot 'configure-key.ps1') }
-$keyPresent = -not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable('COTEMU_API_KEY', 'User')) -or -not [string]::IsNullOrWhiteSpace($env:COTEMU_API_KEY)
-[PSCustomObject]@{ version = $manifest.version; installed = $true; keyConfigured = $keyPresent; restartRequired = $true } | ConvertTo-Json
+[PSCustomObject]@{ version = $manifest.version; installed = $true; accountApiKeyRequired = $false; source = 'GitHub shared snapshot'; restartRequired = $true } | ConvertTo-Json

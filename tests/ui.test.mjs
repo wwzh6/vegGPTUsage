@@ -137,7 +137,7 @@ test('missing key and bridge initialization failure are visible within the two l
   assert.equal(text('countdown'), '连接失败，点击重试');
   controller.accept(snapshot({ data: null, error: 'missing_key', autoPaused: true }));
   assert.equal(text('percent'), '用量未知');
-  assert.equal(text('countdown'), '未配置密钥');
+  assert.equal(text('countdown'), '统一密钥未配置');
 });
 
 test('reference-only and stale data are identified without extra UI rows', t => {

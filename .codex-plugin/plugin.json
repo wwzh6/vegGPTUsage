@@ -1,12 +1,12 @@
 {
   "name": "cotemu-usage-ball",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Vegetation Group shared seven-day account usage ring.",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "植被组额度查询",
-    "shortDescription": "七天用量与重置倒计时",
+    "shortDescription": "统一账号七天用量",
     "category": "Productivity",
     "capabilities": [
       "Interactive"

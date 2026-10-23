@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "cotemu-usage-ball",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Vegetation Group shared seven-day account usage ring.",
   "author": {
     "name": "Local plugin"
@@ -11,8 +11,8 @@
       "mcpServers": "./.mcp.json",
       "interface": {
         "displayName": "植被组额度查询",
-        "shortDescription": "七天用量与重置倒计时",
-        "longDescription": "会话侧面板中的共享账号用量圆环。每十分钟刷新，支持点击查询；不代表个人花费或余额。",
+        "shortDescription": "统一账号七天用量",
+        "longDescription": "读取 GitHub 集中同步的七天用量。成员无需账号 API Key；数据可能延迟。",
         "developerName": "Local plugin",
         "category": "Productivity",
         "capabilities": [

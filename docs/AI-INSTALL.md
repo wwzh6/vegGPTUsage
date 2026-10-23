@@ -1,34 +1,24 @@
 # AI 安装工作流
 
-在 Windows 电脑上给 AI 发送：
+普通成员不需要 COTEMU_API_KEY。统一密钥仅由管理员保存到 GitHub Actions Secret。
 
-> 请安装 https://github.com/wwzh6/vegGPTUsage 的“植被组额度查询”。先读取仓库 AGENTS.md 和 docs/AI-INSTALL.md，使用预构建版本完成检查与安装。需要密钥时打开本地遮掩输入窗口，不要让我把密钥发到聊天中。保留我现有的模型和插件配置，最后验证工具发现；没有真实查询结果时明确说明。
+## 提示词
+
+> 请安装 https://github.com/wwzh6/vegGPTUsage 的“植被组额度查询”。按 AGENTS.md 和 docs/AI-INSTALL.md 使用预构建文件安装，复用本机 GitHub 登录验证仓库读取权限，不要索取或配置 COTEMU_API_KEY。
 
 ## 执行步骤
 
-1. 将仓库克隆到用户可写的新目录；已有 checkout 时先检查本地修改，不能强制覆盖。私有仓库需要登录有权限的 GitHub 账号，不要在聊天中索取访问令牌，也不要改变仓库可见性。若使用 Release ZIP，先核对同发布页 `.sha256`，再解压。
-2. 检查 Windows、Node.js ≥22 和 Codex 桌面端。缺少 Node 时可按用户授权安装官方 Node.js LTS；安装后重新解析 PATH。不要安装构建依赖。非 Windows 停止并说明安装脚本尚不支持。
-3. 在仓库目录运行 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1 -CheckOnly`。脚本自动寻找 Codex CLI；如有多个版本，以当前桌面应用对应版本为准，可传 `-CodexPath`。
-4. 运行同一命令，去掉 `-CheckOnly`。安装器校验预构建文件，注册本地 marketplace，并安装/升级插件。新安装默认目录为 `%LOCALAPPDATA%\VegetationQuota\marketplace`；已有安装复用其原目录并保留其他插件条目。技术 ID 保持 `cotemu-usage-ball@cotemu-local`，用于兼容旧安装。
-5. 只检查 `COTEMU_API_KEY` 是否存在，不输出其值。缺少时执行下方命令，用户在独立窗口粘贴自己的账号 API 密钥。不要自动读取剪贴板或其他配置中的凭证。窗口关闭后再检查变量是否存在；取消不等于配置成功。
+1. 检查 Windows、Node.js ≥22.19 和 Git；缺少时按用户授权安装官方工具。普通成员不需要 npm、Python 或构建依赖。
+2. 用有仓库读取权限的 GitHub 账号克隆仓库到新的可写目录，建议 `git clone --single-branch --branch main https://github.com/wwzh6/vegGPTUsage.git`。已有 checkout 先检查修改，不能强制覆盖。也可下载 Release ZIP 并核对同发布页 `.sha256`。
+3. 通过 Git Credential Manager 或 `gh auth login` 在电脑本地完成 GitHub 登录。SSH 克隆成功不等于 HTTPS API 已登录。不要在聊天中索取令牌，也不要更改仓库可见性或为普通成员配置账号 API Key。
+4. 在仓库目录运行 `node dist/check-access.mjs`。脚本只检查仓库读取权限，不输出凭证。失败时先处理本地登录、仓库权限或网络，不得宣称部署后已经能查看。
+5. 运行 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1 -CheckOnly`，通过后去掉 `-CheckOnly` 安装。安装器自动寻找 Codex CLI，必要时传 `-CodexPath`。新安装保存到 `%LOCALAPPDATA%/VegetationQuota/marketplace`；升级复用原 marketplace 并保留其他插件。
+6. 运行 `node scripts/verify-install.mjs "<实际 codex.exe 路径>"` 检查工具发现。此检查不查询真实用量。工具发现成功不等于 GitHub 数据已同步。
+7. 重新打开 Codex，在会话入口选择“植被组额度查询”，或调用 `open_usage_ball`。不要强制结束正在工作的会话。核对是否显示真实数据；没有权限、同步延迟和原生面板无法操作须分别报告。
 
-   ```powershell
-   Start-Process powershell -WindowStyle Hidden -ArgumentList '-NoProfile','-STA','-ExecutionPolicy','Bypass','-File',('"' + (Join-Path $PWD 'scripts/configure-key.ps1') + '"')
-   ```
+## 运行边界
 
-6. 密钥写入当前 Windows 用户的环境变量，不写仓库。它不是加密密钥库；同一用户的程序可读取。完全退出并重新打开 Codex 以继承新环境。不要强制结束正在工作的 Codex。
-7. 从会话入口选择“植被组额度查询”，或发送“打开植被组额度查询”。可在重新启动后的 AI 会话调用插件工具验证。缺少密钥或原生 UI 不可操作时，报告相应项目未验证。
-
-## 验证与恢复
-
-- `install.ps1 -CheckOnly` 不安装、不写密钥。安装命令可重复运行。
-- 需要检查工具发现时，在仓库创建 `artifacts` 后运行：
-
-  ```powershell
-  New-Item -ItemType Directory artifacts -Force | Out-Null
-  node scripts/verify-install.mjs "<实际 codex.exe 路径>"
-  ```
-
-- 成功标准：插件已启用，工具 `open_usage_ball` 和 `get_usage` 存在，`toolsError` 为 null。工具发现不等同于真实账号或原生界面已通过验证。
-- 连接异常时重新运行密钥窗口，再重启应用。多台电脑若填写同一个密钥，会查看同一个绑定账号；不同密钥则依各自绑定账号显示。
-- 十分钟自动刷新；点击圆环刷新，十五秒内不重复请求；隐藏暂停，恢复时按需补查。用面板原生关闭按钮关闭；圆环聚焦后 Esc 可请求关闭，宿主保留界面时点击圆环重开。
+- 客户端只读取 `quota-data/usage.json`；每十分钟自动检查，点击手动读取，十五秒内合并重复请求。不会调用 Cotemu，也不会通过点击触发 Actions。
+- GitHub 集中任务按十分钟计划运行，排队可能延迟；旧数据会被标记。它独立于客户端运行，关闭所有圆环也不会停止统一同步。
+- Windows 优先使用显式 `VEGETATION_HTTPS_PROXY` 或系统已启用的静态代理；无系统静态代理时读取 HTTPS_PROXY/HTTP_PROXY。PAC 网络可设置前述显式变量。
+- 安装后若 GitHub 登录失效，在本机重新登录并点击圆环。统一密钥错误由管理员按 `docs/ADMIN-SETUP.md` 处理。

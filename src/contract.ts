@@ -15,7 +15,8 @@ export interface Snapshot {
 export type ErrorCode = 'missing_key' | 'invalid_key' | 'key_disabled' | 'owner_disabled'
   | 'team_forbidden' | 'bad_team' | 'rate_limited' | 'unauthorized' | 'forbidden'
   | 'unbound' | 'wrong_platform' | 'multiple_bound' | 'invalid_response'
-  | 'network_error' | 'timeout' | 'http_error' | 'cache_error' | 'busy';
+  | 'network_error' | 'timeout' | 'http_error' | 'cache_error' | 'busy'
+  | 'shared_auth_required' | 'shared_not_ready' | 'shared_unavailable' | 'shared_stale' | 'shared_time_unknown' | 'shared_sync_limited';
 
 export interface State {
   data: Snapshot | null;
@@ -91,4 +92,9 @@ export const messages: Record<ErrorCode, string> = {
   multiple_bound: '返回了多个绑定账号', invalid_response: '接口数据格式异常',
   network_error: '网络连接失败', timeout: '查询超时', http_error: '接口暂时不可用',
   cache_error: '本地查询状态无法保存', busy: '其他会话正在查询，请稍后再试',
+  shared_auth_required: '请使用有仓库读取权限的 GitHub 账号登录',
+  shared_not_ready: '共享数据尚未发布，或当前 GitHub 账号没有仓库读取权限',
+  shared_unavailable: '暂时无法读取共享数据', shared_stale: 'GitHub 同步延迟，当前为旧数据',
+  shared_time_unknown: '无法确定共享数据的时间基准',
+  shared_sync_limited: '统一查询正在冷却，等待下一次 GitHub 同步',
 };

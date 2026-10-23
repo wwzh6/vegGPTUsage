@@ -6,13 +6,13 @@ import { z } from 'zod';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { UsageService } from './service.js';
+import { SharedUsageService } from './shared-service.js';
 import { messages, type UsageResult } from './contract.js';
 
-const server = new McpServer({ name: 'cotemu-usage-ball', version: '0.2.2' });
+const server = new McpServer({ name: 'cotemu-usage-ball', version: '0.3.0' });
 const uri = 'ui://cotemu-usage-ball/v1';
 const cache = join(process.env.LOCALAPPDATA || join(homedir(), '.cache'), 'cotemu-usage-ball', 'cache');
-const service = new UsageService(process.env.COTEMU_API_KEY, cache);
+const service = new SharedUsageService(cache);
 const html = await readFile(new URL('./usage-ball.html', import.meta.url), 'utf8');
 
 function toolResult(value: UsageResult) {
@@ -28,13 +28,13 @@ registerAppResource(server, 'usage-ball', uri, {}, async () => ({ contents: [{
 }] }));
 
 registerAppTool(server, 'open_usage_ball', {
-  title: '植被组额度查询', description: 'Open the bound Cotemu OpenAI account seven-day usage ring in the conversation panel. Account-wide data, not personal spend.',
+  title: '植被组额度查询', description: 'Open the shared seven-day account usage ring from the private GitHub snapshot. No account API key is needed on this computer. Data may be delayed.',
   inputSchema: {}, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
   _meta: { ui: { resourceUri: uri }, 'openai/ui': { entrypoints: [{ type: 'thread' }] } satisfies OpenAIUiToolMetadata },
 }, async () => toolResult(await service.get(true)));
 
 server.registerTool('get_usage', {
-  description: 'Read sanitized bound-account usage. refresh=true requests a manual refresh, subject to shared cooldown.',
+  description: 'Read the latest sanitized GitHub snapshot. refresh=true rereads the snapshot; it does not call the upstream account API or trigger a workflow.',
   inputSchema: { refresh: z.boolean().optional() },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
   _meta: { ui: { visibility: ['app', 'model'] } },

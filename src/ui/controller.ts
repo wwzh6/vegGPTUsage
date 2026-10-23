@@ -105,14 +105,19 @@ export class UsageController {
     else if (flags.includes('仅供参考')) line = `参考 · ${line}`;
     if (this.data.query.error === 'rate_limited' && this.clock.now() < this.allowed)
       line = `冷却 ${Math.ceil((this.allowed - this.clock.now()) / 1000)}秒`;
-    else if (this.data.query.autoPaused) line = this.data.query.error === 'missing_key' ? '未配置密钥' : this.data.query.error ? '连接异常' : line;
+    else if (this.data.query.error === 'shared_auth_required') line = '需要 GitHub 权限';
+    else if (this.data.query.error === 'missing_key') line = '统一密钥未配置';
+    else if (this.data.query.error === 'shared_sync_limited') line = '同步冷却中';
+    else if (['invalid_key', 'key_disabled', 'owner_disabled', 'unauthorized', 'forbidden'].includes(this.data.query.error ?? '')) line = '统一连接异常';
+    else if (this.data.query.autoPaused) line = this.data.query.error ? '连接异常' : line;
     else if (!this.data.data && (display.error || this.bridgeError)) line = '查询失败，点击重试';
     if (this.busy) line = '正在查询…';
     this.text('countdown', line);
     this.ball.dataset.warning = String(stale || !!display.error || this.bridgeError || flags.length > 0);
     this.ball.title = ['植被组额度查询', `已用 ${display.percent}，重置：${display.countdown}`, display.status,
       flags.join(' · '), display.updated, display.error, this.bridgeError ? '无法连接用量服务' : '',
-      '点击刷新；每10分钟自动更新；使用面板关闭按钮或聚焦后按 Esc 关闭。',
+      '点击读取最近同步结果；每10分钟检查。GitHub 定时同步可能延迟，不触发实时账号查询。',
+      '使用面板关闭按钮或聚焦后按 Esc 关闭。',
       '绑定账号共享七天用量，不代表个人花费、账单余额或实际可调用余量。'].filter(Boolean).join('\n');
     this.ball.setAttribute('aria-label', this.ball.title);
   }
