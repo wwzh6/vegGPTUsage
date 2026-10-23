@@ -36,7 +36,8 @@ test('Windows installation preflight is non-mutating and rejects a corrupted run
     assert.equal(installed.status, 0, installed.stderr);
     const catalog = JSON.parse(await readFile(catalogFile, 'utf8'));
     assert.equal(catalog.plugins.length, 2); assert.deepEqual(catalog.plugins[0], other);
-    assert.equal(JSON.parse(await readFile(join(catalogRoot, 'plugins/cotemu-usage-ball/plugin.json'), 'utf8')).version, '0.2.0');
+    assert.equal(JSON.parse(await readFile(join(catalogRoot, 'plugins/cotemu-usage-ball/plugin.json'), 'utf8')).version,
+      JSON.parse(await readFile('plugin.json', 'utf8')).version);
   }
   await writeFile(join(root, 'dist/server.mjs'), '// corrupted fixture');
   const corrupted = run(); assert.notEqual(corrupted.status, 0); assert.match(corrupted.stderr, /integrity check failed/);

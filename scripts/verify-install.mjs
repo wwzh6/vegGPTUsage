@@ -20,7 +20,7 @@ function call(method, params) {
   });
 }
 try {
-  await call('initialize', { clientInfo: { name: 'cotemu-install-check', version: '0.2.0' }, capabilities: { experimentalApi: true } });
+  await call('initialize', { clientInfo: { name: 'cotemu-install-check', version: '0.2.1' }, capabilities: { experimentalApi: true } });
   child.stdin.write(JSON.stringify({ method: 'initialized' }) + '\n');
   const plugin = await call('plugin/read', { marketplacePath: catalog, pluginName: 'cotemu-usage-ball' });
   console.log(JSON.stringify(plugin, null, 2));

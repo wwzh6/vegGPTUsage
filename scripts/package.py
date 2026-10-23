@@ -1,12 +1,15 @@
 import hashlib
+import argparse
 import json
 import zipfile
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 manifest = json.loads((root / 'plugin.json').read_text(encoding='utf-8'))
-output = root.parent / 'deliverables'
-output.mkdir(exist_ok=True)
+parser = argparse.ArgumentParser()
+parser.add_argument('--output', type=Path, default=root.parent / 'deliverables')
+output = parser.parse_args().output
+output.mkdir(parents=True, exist_ok=True)
 files = [root / name for name in ['plugin.json', 'mcp.json', '.mcp.json', 'README.md',
          'VERIFICATION.md', 'THIRD_PARTY_NOTICES.md', 'package.json', 'package-lock.json', 'tsconfig.json',
          'runtime.sha256.json', 'AGENTS.md', '.gitignore', '.gitattributes']]

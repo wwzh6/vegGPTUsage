@@ -29051,7 +29051,7 @@ var UsageService = class {
 };
 
 // src/server.ts
-var server = new McpServer({ name: "cotemu-usage-ball", version: "0.2.0" });
+var server = new McpServer({ name: "cotemu-usage-ball", version: "0.2.1" });
 var uri = "ui://cotemu-usage-ball/v1";
 var cache = join2(process.env.LOCALAPPDATA || join2(homedir(), ".cache"), "cotemu-usage-ball", "cache");
 var service = new UsageService(process.env.COTEMU_API_KEY, cache);
