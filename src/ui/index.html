@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>植被组额度查询</title>
+  <style>
+    :root { color-scheme: light dark; --used: #168575; --remaining: #dcebe6; --ink: #203b35; --muted: #64766e; --paper: #f8faf7; --warning: #a15e20; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--color-background-primary, var(--paper)); color: var(--color-text-primary, var(--ink)); font-family: var(--font-sans, "Segoe UI", "Microsoft YaHei", sans-serif); }
+    main { display: grid; place-items: center; padding: max(16px, var(--safe-top, 0px)) max(12px, var(--safe-right, 0px)) max(16px, var(--safe-bottom, 0px)) max(12px, var(--safe-left, 0px)); }
+    #ball { position: relative; width: min(180px, 100%); aspect-ratio: 1; border: 0; padding: 0; border-radius: 50%; background: transparent; color: inherit; font: inherit; cursor: pointer; touch-action: manipulation; }
+    #ball:focus-visible { outline: 3px solid #83bdb0; outline-offset: 3px; }
+    #ball svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+    #ball circle { fill: none; stroke-width: 6; }
+    #track { stroke: var(--remaining); }
+    #used-ring { stroke: var(--used); }
+    #ball[data-unknown="true"] #track { stroke-dasharray: 2 2; }
+    #ball[data-warning="true"] #countdown { color: var(--warning); }
+    #ball:disabled { cursor: progress; opacity: .7; }
+    .center { position: absolute; inset: 0 15%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; }
+    #percent { font-size: 34px; font-weight: 600; letter-spacing: -.04em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+    #ball[data-unknown="true"] #percent { font-size: 22px; letter-spacing: 0; }
+    #countdown { color: var(--color-text-secondary, var(--muted)); font-size: 12px; line-height: 1.5; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper: #171e1b; --ink: #e5ece8; --muted: #a0b1a7; --remaining: #354b43; --used: #66bfa7; --warning: #e7b37f; } }
+    :root[data-theme="dark"] { --paper: #171e1b; --ink: #e5ece8; --muted: #a0b1a7; --remaining: #354b43; --used: #66bfa7; --warning: #e7b37f; }
+  </style>
+  <!-- BUNDLED_STYLE -->
+</head>
+<body>
+  <main>
+    <button id="ball" data-unknown="true" aria-label="植被组额度查询，点击刷新">
+      <svg viewBox="0 0 100 100" aria-hidden="true"><circle id="track" cx="50" cy="50" r="45" pathLength="100"/><circle id="used-ring" cx="50" cy="50" r="45" pathLength="100" stroke-dasharray="0 100"/></svg>
+      <span class="center"><span id="percent">用量未知</span><span id="countdown">正在连接…</span></span>
+    </button>
+  </main>
+  <!-- BUNDLED_SCRIPT -->
+</body>
+</html>

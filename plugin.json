@@ -1,0 +1,26 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cotemu-usage-ball",
+  "version": "0.2.0",
+  "description": "Vegetation Group shared seven-day account usage ring.",
+  "author": {
+    "name": "Local plugin"
+  },
+  "extensions": {
+    "com.openai": {
+      "mcpServers": "./.mcp.json",
+      "interface": {
+        "displayName": "植被组额度查询",
+        "shortDescription": "七天用量与重置倒计时",
+        "longDescription": "会话侧面板中的共享账号用量圆环。每十分钟刷新，支持点击查询；不代表个人花费或余额。",
+        "developerName": "Local plugin",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": "打开植被组额度查询",
+        "logo": "./assets/icon.svg"
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "cotemu-usage": {
+      "command": "node",
+      "args": ["dist/server.mjs"],
+      "cwd": ".",
+      "env_vars": ["COTEMU_API_KEY", "LOCALAPPDATA"]
+    }
+  }
+}
