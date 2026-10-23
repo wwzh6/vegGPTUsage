@@ -3,6 +3,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.request
@@ -57,7 +58,7 @@ def main():
     args = parser.parse_args()
     from nacl.public import PublicKey, SealedBox
     key = local_key()
-    if not (key.startswith('sk-ctm-') or key.startswith('ctm_')):
+    if not re.fullmatch(r'(sk-|ctm_)[A-Za-z0-9_-]+', key):
         raise ValueError('missing-account-key')
     token = github_token()
     network = opener()

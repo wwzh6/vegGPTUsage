@@ -4,7 +4,7 @@
 
 ## 初次设置与更换密钥
 
-1. 账号 API Key 来自服务商“密钥管理”，常见格式 `sk-ctm-…` 或 `ctm_…`。它不是队伍码或 `ctm-team-…` 队伍令牌。
+1. 账号 API Key 必须由 Cotemu 签发。文档列出 `sk-ctm-…` 或 `ctm_…`；配置工具也允许输入普通 `sk-…`，是否有效以账号查询接口响应为准。它不是队伍码或 `ctm-team-…` 队伍令牌。
 2. Windows 管理员电脑运行 `scripts/configure-key.ps1`，在遮掩窗口输入，保存到当前用户环境变量。此本地变量用于管理员上传，不会分发给成员。不要在聊天、命令行参数、源码或 Actions 日志中填写密钥。
 3. 管理员需要 Python 和 PyNaCl（仅管理员配置工具需要），并通过 Git Credential Manager 或 GitHub CLI 登录有仓库 Secret 管理权限的 GitHub 账号。
 4. 在仓库目录执行 `python scripts/configure-shared.py`。脚本读取本地用户环境变量，用 GitHub 仓库公钥进行 sealed-box 加密后保存为 `COTEMU_API_KEY` Actions Secret，再触发 `Sync shared quota`。不输出完整密钥、GitHub 凭证或上游错误正文。`--upload-only` 仅保存 Secret。

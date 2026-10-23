@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $form = New-Object Windows.Forms.Form
-$form.Text = 'Vegetation Group - API key'
+$form.Text = 'Vegetation Group - account key setup'
 $form.Size = New-Object Drawing.Size(460,190)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
@@ -12,7 +12,7 @@ $form.TopMost = $true
 $form.ShowInTaskbar = $true
 $form.WindowState = [Windows.Forms.FormWindowState]::Normal
 $label = New-Object Windows.Forms.Label
-$label.Text = 'Enter the account API key (not a team code).'
+$label.Text = 'Enter your Cotemu account key (sk-... or ctm_...).'
 $label.SetBounds(20,15,410,25)
 $inputBox = New-Object Windows.Forms.TextBox
 $inputBox.UseSystemPasswordChar = $true
@@ -28,8 +28,8 @@ $form.AcceptButton = $save
 $form.CancelButton = $cancel
 $save.Add_Click({
     $keyValue = $inputBox.Text.Trim()
-    if ($keyValue -notmatch '^(sk-ctm-|ctm_)[A-Za-z0-9_-]+$') {
-        [Windows.Forms.MessageBox]::Show($form, 'Use an account API key beginning sk-ctm- or ctm_.', 'Invalid key format') | Out-Null
+    if ($keyValue -cnotmatch '^(sk-|ctm_)[A-Za-z0-9_-]+$') {
+        [Windows.Forms.MessageBox]::Show($form, 'Enter a Cotemu account key beginning sk- or ctm_, without spaces. Team tokens are not accepted.', 'Invalid key format') | Out-Null
         return
     }
     try {
