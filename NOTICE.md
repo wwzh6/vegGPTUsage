@@ -1,4 +1,5 @@
-# 植被组通知
+## 通知
+暂无内容。
 
 # 常用链接
 ## 配置教程
@@ -23,5 +24,4 @@ https://ip111.cn/
 https://whoer.net/zh
 https://ipinfo.io/dashboard
 
-## 通知
-暂无内容。
+
