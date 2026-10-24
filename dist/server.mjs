@@ -59909,11 +59909,12 @@ function normalize(body, now) {
   };
 }
 function result(state, now, queried = false, mode) {
-  const { data, ...query } = state;
+  const { data, notices, ...query } = state;
   const elapsed = data ? now - data.sampledAtMs : 0;
   return {
     version: 1,
     data,
+    ...notices ? { notices } : {},
     serverNowMs: data?.serverMs != null && elapsed >= 0 ? data.serverMs + elapsed : null,
     query: {
       ...query,
@@ -59946,7 +59947,7 @@ var messages = {
   shared_auth_required: "\u8BF7\u4F7F\u7528\u6709\u4ED3\u5E93\u8BFB\u53D6\u6743\u9650\u7684 GitHub \u8D26\u53F7\u767B\u5F55",
   shared_not_ready: "\u5171\u4EAB\u6570\u636E\u5C1A\u672A\u53D1\u5E03\uFF0C\u6216\u5F53\u524D GitHub \u8D26\u53F7\u6CA1\u6709\u4ED3\u5E93\u8BFB\u53D6\u6743\u9650",
   shared_unavailable: "\u6682\u65F6\u65E0\u6CD5\u8BFB\u53D6\u5171\u4EAB\u6570\u636E",
-  shared_stale: "GitHub \u540C\u6B65\u5EF6\u8FDF\uFF0C\u5F53\u524D\u4E3A\u65E7\u6570\u636E",
+  shared_stale: "\u5171\u4EAB\u5FEB\u7167\u7B49\u5F85\u540C\u6B65",
   shared_time_unknown: "\u65E0\u6CD5\u786E\u5B9A\u5171\u4EAB\u6570\u636E\u7684\u65F6\u95F4\u57FA\u51C6",
   shared_sync_limited: "\u7EDF\u4E00\u67E5\u8BE2\u6B63\u5728\u51B7\u5374\uFF0C\u7B49\u5F85\u4E0B\u4E00\u6B21 GitHub \u540C\u6B65"
 };
@@ -60082,6 +60083,7 @@ var REPOSITORY = "wwzh6/vegGPTUsage";
 var DATA_BRANCH = "quota-data";
 var DATA_PATH = "usage.json";
 var SNAPSHOT_URL = `https://api.github.com/repos/${REPOSITORY}/contents/${DATA_PATH}?ref=${DATA_BRANCH}`;
+var NOTICE_URL = `https://api.github.com/repos/${REPOSITORY}/contents/NOTICE.md?ref=main`;
 
 // src/github.ts
 function run(file2, args, input) {
@@ -60158,6 +60160,27 @@ function retryDelay(header, now) {
   return Number.isFinite(date5) ? Math.max(MIN_INTERVAL, date5 - now) : INTERVAL;
 }
 
+// src/notices.ts
+function parseNotices(markdown) {
+  if (new TextEncoder().encode(markdown).length > 32768) throw new Error("notice_too_large");
+  const cards = [];
+  let card;
+  for (const line of markdown.replace(/^\uFEFF/, "").replaceAll("\r\n", "\n").split("\n")) {
+    const heading = /^##\s+(.+)$/.exec(line);
+    if (heading) {
+      card = { title: heading[1].trim(), text: "" };
+      if (card.title.length > 80 || cards.length >= 6) throw new Error("notice_too_large");
+      cards.push(card);
+    } else if (card) {
+      card.text += line + "\n";
+      if (card.text.length > 4e3) throw new Error("notice_too_large");
+    } else if (line.trim() && !/^#\s/.test(line)) {
+      throw new Error("notice_heading_required");
+    }
+  }
+  return cards.map((item) => ({ ...item, text: item.text.trim() }));
+}
+
 // src/shared-service.ts
 var SharedUsageService = class {
   constructor(root, credential = githubCredential, fetcher = githubFetch, now = Date.now) {
@@ -60177,6 +60200,25 @@ var SharedUsageService = class {
     });
     return this.pending;
   }
+  async updateNotices(current, headers, signal) {
+    const previous = current.notices ?? { cards: [], fetchedAtMs: null, error: null };
+    try {
+      const response = await this.fetcher(NOTICE_URL, { headers, redirect: "error", signal });
+      if (response.status === 429 || response.status === 403 && response.headers.get("x-ratelimit-remaining") === "0") {
+        const reset = Number(response.headers.get("x-ratelimit-reset")) * 1e3 - this.now();
+        const wait = response.headers.has("Retry-After") ? retryDelay(response.headers.get("Retry-After"), this.now()) : reset > 0 ? Math.max(MIN_INTERVAL, reset) : INTERVAL;
+        current.nextAllowedAtMs = Math.max(current.nextAllowedAtMs, this.now() + wait);
+        current.notices = { ...previous, error: "rate_limited" };
+      } else if (response.status === 404) {
+        current.notices = { cards: [], fetchedAtMs: this.now(), error: null };
+      } else {
+        if (!response.ok) throw new Error("notice_unavailable");
+        current.notices = { cards: parseNotices(await response.text()), fetchedAtMs: this.now(), error: null };
+      }
+    } catch {
+      current.notices = { ...previous, error: "unavailable" };
+    }
+  }
   async query(refresh) {
     let current = emptyState();
     const requestedAt = this.now();
@@ -60194,51 +60236,50 @@ var SharedUsageService = class {
         await this.store.write(current);
         try {
           const token = await this.credential();
-          if (!token) {
+          const headers = {
+            Accept: "application/vnd.github.raw+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "VegetationQuota",
+            ...token ? { Authorization: `Bearer ${token}` } : {}
+          };
+          const signal = AbortSignal.timeout(15e3);
+          const [snapshotResponse] = await Promise.allSettled([
+            this.fetcher(SNAPSHOT_URL, { headers, redirect: "error", signal }),
+            this.updateNotices(current, headers, signal)
+          ]);
+          if (snapshotResponse.status === "rejected") throw new Error("snapshot_unavailable");
+          const response = snapshotResponse.value;
+          if (response.status === 429 || response.status === 403 && response.headers.get("x-ratelimit-remaining") === "0") {
+            current.error = "rate_limited";
+            current.autoPaused = false;
+            const reset = Number(response.headers.get("x-ratelimit-reset")) * 1e3 - this.now();
+            current.nextAllowedAtMs = Math.max(current.nextAllowedAtMs, this.now() + (response.headers.has("Retry-After") ? retryDelay(response.headers.get("Retry-After"), this.now()) : reset > 0 ? Math.max(MIN_INTERVAL, reset) : INTERVAL));
+          } else if (response.status === 401 || response.status === 403) {
             current.error = "shared_auth_required";
             current.autoPaused = true;
+          } else if (!response.ok) {
+            current.error = response.status === 404 ? token ? "shared_not_ready" : "shared_auth_required" : "shared_unavailable";
+            current.autoPaused = current.error === "shared_auth_required";
           } else {
-            const response = await this.fetcher(SNAPSHOT_URL, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/vnd.github.raw+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-                "User-Agent": "VegetationQuota"
-              },
-              redirect: "error",
-              signal: AbortSignal.timeout(15e3)
-            });
-            if (response.status === 429 || response.status === 403 && response.headers.get("x-ratelimit-remaining") === "0") {
-              current.error = "rate_limited";
-              current.autoPaused = false;
-              const reset = Number(response.headers.get("x-ratelimit-reset")) * 1e3 - this.now();
-              current.nextAllowedAtMs = this.now() + (response.headers.has("Retry-After") ? retryDelay(response.headers.get("Retry-After"), this.now()) : reset > 0 ? Math.max(MIN_INTERVAL, reset) : INTERVAL);
-            } else if (response.status === 401 || response.status === 403) {
-              current.error = "shared_auth_required";
-              current.autoPaused = true;
-            } else if (!response.ok) {
-              current.error = response.status === 404 ? "shared_not_ready" : "shared_unavailable";
-              current.autoPaused = false;
-            } else {
-              const text = await response.text();
-              if (text.length > 32768) throw new Error("invalid_response");
-              const remote = decodePublication(JSON.parse(text));
-              const networkNow = Date.parse(response.headers.get("Date") ?? "");
-              const reference = Number.isFinite(networkNow) && networkNow >= remote.publishedAtMs - 1e3 ? networkNow : null;
-              const remoteData = remote.state.data;
-              current.data = remoteData ? {
-                ...remoteData,
-                serverMs: reference !== null && remoteData.serverMs !== null && reference >= remoteData.sampledAtMs - 1e3 ? remoteData.serverMs + Math.max(0, reference - remoteData.sampledAtMs) : null,
-                sampledAtMs: this.now()
-              } : null;
-              current.error = remote.state.error === "rate_limited" ? "shared_sync_limited" : remote.state.error ?? (reference === null ? "shared_time_unknown" : reference - remote.publishedAtMs > INTERVAL ? "shared_stale" : null);
-              current.autoPaused = false;
-            }
+            const text = await response.text();
+            if (text.length > 32768) throw new Error("invalid_response");
+            const remote = decodePublication(JSON.parse(text));
+            const networkNow = Date.parse(response.headers.get("Date") ?? "");
+            const reference = Number.isFinite(networkNow) && networkNow >= remote.publishedAtMs - 1e3 ? networkNow : null;
+            const remoteData = remote.state.data;
+            current.data = remoteData ? {
+              ...remoteData,
+              serverMs: reference !== null && remoteData.serverMs !== null && reference >= remoteData.sampledAtMs - 1e3 ? remoteData.serverMs + Math.max(0, reference - remoteData.sampledAtMs) : null,
+              sampledAtMs: this.now()
+            } : null;
+            current.error = remote.state.error === "rate_limited" ? "shared_sync_limited" : remote.state.error ?? (reference === null ? "shared_time_unknown" : reference - remote.publishedAtMs > INTERVAL ? "shared_stale" : null);
+            current.autoPaused = false;
           }
         } catch {
           current.error = "shared_unavailable";
           current.autoPaused = false;
         }
+        if (current.notices?.error === "rate_limited" && !current.autoPaused) current.error = "rate_limited";
         current.lastCompletedAtMs = this.now();
         current.nextRefreshAtMs = current.error === "rate_limited" ? current.nextAllowedAtMs : this.now() + INTERVAL;
         await this.store.write(current);
@@ -60254,7 +60295,7 @@ var SharedUsageService = class {
 };
 
 // src/server.ts
-var server = new McpServer({ name: "cotemu-usage-ball", version: "0.3.2" });
+var server = new McpServer({ name: "cotemu-usage-ball", version: "0.4.0" });
 var uri = "ui://cotemu-usage-ball/v1";
 var cache = join2(process.env.LOCALAPPDATA || join2(homedir(), ".cache"), "cotemu-usage-ball", "cache");
 var service = new SharedUsageService(cache);
@@ -60274,13 +60315,13 @@ N3(server, "usage-ball", uri, {}, async () => ({ contents: [{
 }] }));
 K3(server, "open_usage_ball", {
   title: "\u690D\u88AB\u7EC4\u989D\u5EA6\u67E5\u8BE2",
-  description: "Open the shared seven-day account usage ring from the private GitHub snapshot. No account API key is needed on this computer. Data may be delayed.",
+  description: "Open the shared seven-day account usage ring and notice cards from GitHub. Public repositories need no login; private repositories require read access. Data may be delayed.",
   inputSchema: {},
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
   _meta: { ui: { resourceUri: uri }, "openai/ui": { entrypoints: [{ type: "global" }, { type: "thread" }] } }
 }, async () => toolResult(await service.get(true)));
 server.registerTool("get_usage", {
-  description: "Read the latest sanitized GitHub snapshot. refresh=true rereads the snapshot; it does not call the upstream account API or trigger a workflow.",
+  description: "Read the sanitized GitHub snapshot and NOTICE.md cards. refresh=true rereads both; it does not call the upstream account API or trigger a workflow.",
   inputSchema: { refresh: external_exports.boolean().optional() },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
   _meta: { ui: { visibility: ["app", "model"] } }

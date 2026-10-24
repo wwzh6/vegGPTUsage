@@ -37,7 +37,7 @@ test('a lock left by a dead owner is recovered', async t => {
   assert.equal((await service.get(true)).data.usedPercent, 40);
 });
 
-test('prebuilt stdio server discovers tools and reports missing GitHub access without an account key', async t => {
+test('prebuilt stdio server discovers entrypoints and UI without an account key', async t => {
   const root = await temp(t);
   const transport = new StdioClientTransport({ command: process.execPath, args: [resolve('dist/server.mjs')],
     env: { PATH: process.env.PATH, SYSTEMROOT: process.env.SYSTEMROOT, LOCALAPPDATA: root, COTEMU_API_KEY: '',
@@ -50,8 +50,6 @@ test('prebuilt stdio server discovers tools and reports missing GitHub access wi
   assert.deepEqual(tools.map(tool => tool.name).sort(), ['get_usage', 'open_usage_ball']);
   const tool = tools.find(tool => tool.name === 'open_usage_ball');
   assert.deepEqual(tool._meta['openai/ui'].entrypoints.map(entry => entry.type).sort(), ['global', 'thread']);
-  const value = await client.callTool({ name: 'open_usage_ball', arguments: {} });
-  assert.equal(value.structuredContent.query.error, 'shared_auth_required');
   const resource = await client.readResource({ uri: tool._meta.ui.resourceUri });
   assert.equal(resource.contents[0].mimeType, 'text/html;profile=mcp-app');
   assert.match(resource.contents[0].text, /植被组额度查询/);

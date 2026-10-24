@@ -12,7 +12,7 @@ output = parser.parse_args().output
 output.mkdir(parents=True, exist_ok=True)
 files = [root / name for name in ['plugin.json', 'mcp.json', '.mcp.json', 'README.md',
          'VERIFICATION.md', 'THIRD_PARTY_NOTICES.md', 'package.json', 'package-lock.json', 'tsconfig.json',
-         'runtime.sha256.json', 'AGENTS.md', '.gitignore', '.gitattributes']]
+         'runtime.sha256.json', 'AGENTS.md', '.gitignore', '.gitattributes', 'NOTICE.md']]
 for folder in ['.codex-plugin', '.github', 'docs', 'dist', 'assets', 'skills', 'src', 'tests', 'scripts']:
     files.extend(p for p in (root / folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
 files.sort(key=lambda p: p.relative_to(root).as_posix())

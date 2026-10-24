@@ -7,6 +7,10 @@ import { SharedUsageService } from '../artifacts/test/shared-service.mjs';
 import { publication, decodePublication } from '../artifacts/test/publication.mjs';
 import { emptyState, normalize, INTERVAL, MIN_INTERVAL } from '../artifacts/test/contract.mjs';
 import { NOW, body } from './fixture.mjs';
+import { parseNotices } from '../artifacts/test/notices.mjs';
+
+const withNotices = (fetcher, notices = async () => new Response('')) =>
+  (url, options) => url.includes('/NOTICE.md?') ? notices(url, options) : fetcher(url, options);
 
 function published(overrides = {}) {
   return publication({ ...emptyState(), data: normalize(body(), NOW), lastAttemptAtMs: NOW,
@@ -15,10 +19,10 @@ function published(overrides = {}) {
 function response(value = published(), date = NOW) {
   return new Response(JSON.stringify(value), { headers: { Date: new Date(date).toUTCString() } });
 }
-async function setup(t, fetcher, credential = async () => 'synthetic-github-reader') {
+async function setup(t, fetcher, credential = async () => 'synthetic-github-reader', notices) {
   const root = await mkdtemp(join(tmpdir(), 'vegetation-shared-')); let time = NOW;
   t.after(() => rm(root, { recursive: true, force: true }));
-  const service = new SharedUsageService(root, credential, fetcher, () => time);
+  const service = new SharedUsageService(root, credential, withNotices(fetcher, notices), () => time);
   return { service, root, setTime: value => { time = value; } };
 }
 
@@ -34,12 +38,22 @@ test('GitHub reader sends only GitHub credentials to the fixed snapshot URL', as
   assert.ok(!(await readFile(join(service.store.directory, 'state.json'), 'utf8')).includes('synthetic-github-reader'));
 });
 
-test('missing GitHub login does not contact any endpoint or require an upstream account key', async t => {
+test('public snapshots can be read without GitHub login or an upstream account key', async t => {
   let requests = 0;
-  const { service } = await setup(t, async () => { requests++; return response(); }, async () => null);
+  const { service } = await setup(t, async (url, options) => {
+    requests++; assert.equal(options.headers.Authorization, undefined); return response();
+  }, async () => null, async (url, options) => {
+    assert.equal(options.headers.Authorization, undefined); return new Response('## Public notice\nHello');
+  });
   const result = await service.get(true);
-  assert.equal(result.query.error, 'shared_auth_required'); assert.equal(result.query.autoPaused, true);
-  assert.equal(requests, 0);
+  assert.equal(result.query.error, null); assert.equal(result.query.autoPaused, false);
+  assert.equal(requests, 1); assert.equal(result.notices.cards[0].text, 'Hello');
+});
+
+test('private snapshots still require repository access', async t => {
+  const { service } = await setup(t, async () => new Response('', { status: 404 }), async () => null);
+  const value = await service.get(true);
+  assert.equal(value.query.error, 'shared_auth_required'); assert.equal(value.query.autoPaused, true);
 });
 
 test('GitHub Date establishes server time despite a client clock ten days ahead', async t => {
@@ -85,7 +99,7 @@ test('shared refreshes coalesce across instances and respect ten-minute and fift
   let requests = 0;
   const fetcher = async () => { requests++; return response(); };
   const { service, root, setTime } = await setup(t, fetcher);
-  const other = new SharedUsageService(root, async () => 'synthetic-github-reader', fetcher, () => NOW);
+  const other = new SharedUsageService(root, async () => 'synthetic-github-reader', withNotices(fetcher), () => NOW);
   await Promise.all([service.get(true), other.get(true), service.get(true)]);
   assert.equal(requests, 1);
   setTime(NOW + 14_999); await service.get(true); assert.equal(requests, 1);
@@ -117,4 +131,46 @@ test('upstream cooldown does not turn snapshot polling into a fifteen-second loo
   const value = await service.get(true);
   assert.equal(value.query.error, 'shared_sync_limited');
   assert.equal(value.query.nextRefreshAtMs, NOW + INTERVAL);
+});
+
+test('notice document parsing bounds content and preserves plain text', () => {
+  assert.deepEqual(parseNotices('# Group\r\n\r\n## First\r\nHello\r\n\r\n## Second\n<img src=x>'),
+    [{ title: 'First', text: 'Hello' }, { title: 'Second', text: '<img src=x>' }]);
+  assert.deepEqual(parseNotices(''), []);
+  for (const invalid of ['missing heading', '## '+ 'a'.repeat(81), '## One\n'+'x'.repeat(4001),
+    Array.from({length:7},(_,i)=>'## '+i).join('\n'), '字'.repeat(20000)]) assert.throws(() => parseNotices(invalid));
+});
+
+test('notices refresh with quota, share throttling and cache, and survive document errors', async t => {
+  let requests = 0; let document = '## Group\nFirst'; let failure = false;
+  const {service, root, setTime} = await setup(t, async () => response(), undefined, async (url, options) => {
+    assert.equal(url, 'https://api.github.com/repos/wwzh6/vegGPTUsage/contents/NOTICE.md?ref=main');
+    assert.equal(options.redirect, 'error'); assert.equal(options.headers.Authorization, 'Bearer synthetic-github-reader');
+    requests++; return failure ? new Response('private error', {status:500}) : new Response(document);
+  });
+  assert.equal((await service.get(true)).notices.cards[0].text, 'First');
+  await service.get(true); assert.equal(requests, 1);
+  setTime(NOW+MIN_INTERVAL); document='## Group\nSecond';
+  assert.equal((await service.get(true)).notices.cards[0].text, 'Second');
+  setTime(NOW+MIN_INTERVAL*2); failure=true;
+  const failed=await service.get(true);
+  assert.equal(failed.notices.cards[0].text,'Second'); assert.equal(failed.notices.error,'unavailable');
+  assert.equal(failed.query.error,null);
+  assert.ok(!JSON.stringify(failed).includes('private error'));
+  const other=new SharedUsageService(root,async()=>{throw Error('must use cache');},async()=>{throw Error('must use cache');},()=>NOW+MIN_INTERVAL*2+1);
+  assert.deepEqual((await other.get(false)).notices,failed.notices);
+  setTime(NOW+INTERVAL*2); failure=false; document='';
+  assert.deepEqual((await service.get(false)).notices.cards,[]);
+});
+
+test('notice updates remain available when quota fails and rate limits stop both requests', async t => {
+  let limited=false;
+  const {service,setTime}=await setup(t,async()=>new Response('',{status:500}),undefined,async()=>limited
+    ?new Response('',{status:429,headers:{'Retry-After':'180'}}):new Response('## News\nAvailable'));
+  const value=await service.get(true);
+  assert.equal(value.query.error,'shared_unavailable'); assert.equal(value.notices.cards[0].text,'Available');
+  setTime(NOW+MIN_INTERVAL); limited=true;
+  const blocked=await service.get(true);
+  assert.equal(blocked.query.error,'rate_limited'); assert.equal(blocked.query.nextAllowedAtMs,NOW+MIN_INTERVAL+180000);
+  assert.equal(blocked.notices.cards[0].text,'Available');
 });

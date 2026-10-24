@@ -87,10 +87,10 @@ test('authorization errors disable automatic refresh but allow manual recovery',
   await clock.tickAsync(INTERVAL); assert.equal(calls.length, 2);
 });
 
-test('bridge errors retain old data, flag it, and avoid immediate retry loops', async t => {
+test('bridge errors retain values without obsolete labels or immediate retry loops', async t => {
   const { clock, controller, calls, text, dom } = setup(t, () => { throw new Error('bridge disconnected'); });
   controller.accept(snapshot()); await clock.tickAsync(MIN_INTERVAL); await controller.refresh(true);
-  assert.equal(text('percent'), '40%'); assert.match(dom.window.document.getElementById('ball').title, /旧数据/);
+  assert.equal(text('percent'), '40%'); assert.doesNotMatch(dom.window.document.getElementById('ball').title, /旧|过时/);
   await clock.tickAsync(INTERVAL - 1); assert.equal(calls.length, 1);
   await clock.tickAsync(1); assert.equal(calls.length, 2);
 });
@@ -102,7 +102,7 @@ test('countdown and aging update locally without network calls', async t => {
   controller.accept(data);
   await clock.tickAsync(60_000); assert.equal(text('countdown'), '已到期，待更新');
   assert.equal(text('percent'), '40%');
-  await clock.tickAsync(600_000); assert.match(dom.window.document.getElementById('ball').title, /可能过时/); assert.equal(calls.length, 0);
+  await clock.tickAsync(600_000); assert.match(dom.window.document.getElementById('ball').title, /账号数据 12 分钟前更新/); assert.equal(calls.length, 0);
 });
 
 test('wall clock adjustments do not shift server-based countdown', async t => {
@@ -120,7 +120,7 @@ test('an occluded iframe stays paused even when its document reports visible', a
   controller.setOccluded(false); await clock.tickAsync(0); assert.equal(calls.length, 1);
 });
 
-test('compact UI contains only the ring and two text lines; details remain accessible', t => {
+test('ring retains two text lines and its tooltip has exactly the requested three lines', t => {
   const { controller, dom } = setup(t);
   controller.accept(snapshot());
   const doc = dom.window.document;
@@ -128,7 +128,8 @@ test('compact UI contains only the ring and two text lines; details remain acces
   assert.equal(doc.querySelectorAll('button').length, 1);
   assert.equal(doc.querySelectorAll('.center > span').length, 2);
   assert.equal(doc.querySelector('header, footer, #notice, #flags, #reset-label'), null);
-  assert.match(doc.getElementById('ball').getAttribute('aria-label'), /账号共享七天用量/);
+  assert.deepEqual(doc.getElementById('ball').title.split('\n'), ['周额度已用：40%', '距离下次重置：3天 0小时', '账号数据 1 分钟前更新']);
+  assert.equal(doc.getElementById('ball').getAttribute('aria-label'), doc.getElementById('ball').title);
 });
 
 test('missing key and bridge initialization failure are visible within the two lines', t => {
@@ -140,15 +141,36 @@ test('missing key and bridge initialization failure are visible within the two l
   assert.equal(text('countdown'), '统一密钥未配置');
 });
 
-test('reference-only and stale data are identified without extra UI rows', t => {
+test('obsolete markers are absent from the countdown and tooltip even when snapshot is delayed', t => {
   const { controller, text, dom } = setup(t);
   const value = snapshot(); value.data.enforced = false;
   controller.accept(value);
   assert.match(text('countdown'), /^参考 · /);
   value.query.error = 'network_error'; value.query.stale = true;
   controller.accept(value);
-  assert.match(text('countdown'), /^旧 · /);
-  assert.match(dom.window.document.getElementById('ball').title, /仅供参考/);
+  assert.doesNotMatch(text('countdown'), /旧|过时/);
+  assert.doesNotMatch(dom.window.document.getElementById('ball').title, /旧|过时|仅供参考/);
+});
+
+test('notice cards render as plain text and follow manual and automatic refreshes', async t => {
+  let contents='Updated';
+  const {controller,dom,clock,text}=setup(t,()=>({...snapshot(),notices:{cards:[{title:'Group',text:contents}],fetchedAtMs:Date.now(),error:null}}));
+  const value=snapshot();
+  value.notices={cards:[{title:'<img src=x>',text:'<script>alert(1)</script>\nSecond line'}],error:null,fetchedAtMs:NOW};
+  controller.accept(value);
+  const container=dom.window.document.getElementById('notices');
+  assert.equal(container.querySelectorAll('.notice-card').length,1);
+  assert.equal(container.querySelector('img,script'),null);
+  assert.match(container.textContent,/<script>alert\(1\)<\/script>/);
+  await clock.tickAsync(MIN_INTERVAL); await controller.refresh(true);
+  assert.equal(container.querySelector('p').textContent,'Updated');
+  contents='Automatic'; await clock.tickAsync(INTERVAL);
+  assert.equal(container.querySelector('p').textContent,'Automatic');
+  value.notices.error='unavailable'; controller.accept(value); assert.equal(text('notice-status'),'文字暂未同步');
+  await controller.close(); assert.equal(container.hidden,true);
+  await controller.reopen(); assert.equal(container.hidden,false);
+  controller.accept({...snapshot(),notices:{cards:[],error:null,fetchedAtMs:NOW}});
+  assert.equal(container.children.length,0); assert.equal(text('notice-status'),'');
 });
 
 test('Escape closes the ring and clicking it reopens with the same rate limit', async t => {

@@ -44,11 +44,12 @@ function normalize(body, now) {
   };
 }
 function result(state, now, queried = false, mode) {
-  const { data, ...query } = state;
+  const { data, notices, ...query } = state;
   const elapsed = data ? now - data.sampledAtMs : 0;
   return {
     version: 1,
     data,
+    ...notices ? { notices } : {},
     serverNowMs: data?.serverMs != null && elapsed >= 0 ? data.serverMs + elapsed : null,
     query: {
       ...query,
@@ -81,7 +82,7 @@ var messages = {
   shared_auth_required: "\u8BF7\u4F7F\u7528\u6709\u4ED3\u5E93\u8BFB\u53D6\u6743\u9650\u7684 GitHub \u8D26\u53F7\u767B\u5F55",
   shared_not_ready: "\u5171\u4EAB\u6570\u636E\u5C1A\u672A\u53D1\u5E03\uFF0C\u6216\u5F53\u524D GitHub \u8D26\u53F7\u6CA1\u6709\u4ED3\u5E93\u8BFB\u53D6\u6743\u9650",
   shared_unavailable: "\u6682\u65F6\u65E0\u6CD5\u8BFB\u53D6\u5171\u4EAB\u6570\u636E",
-  shared_stale: "GitHub \u540C\u6B65\u5EF6\u8FDF\uFF0C\u5F53\u524D\u4E3A\u65E7\u6570\u636E",
+  shared_stale: "\u5171\u4EAB\u5FEB\u7167\u7B49\u5F85\u540C\u6B65",
   shared_time_unknown: "\u65E0\u6CD5\u786E\u5B9A\u5171\u4EAB\u6570\u636E\u7684\u65F6\u95F4\u57FA\u51C6",
   shared_sync_limited: "\u7EDF\u4E00\u67E5\u8BE2\u6B63\u5728\u51B7\u5374\uFF0C\u7B49\u5F85\u4E0B\u4E00\u6B21 GitHub \u540C\u6B65"
 };
@@ -309,6 +310,7 @@ var REPOSITORY = "wwzh6/vegGPTUsage";
 var DATA_BRANCH = "quota-data";
 var DATA_PATH = "usage.json";
 var SNAPSHOT_URL = `https://api.github.com/repos/${REPOSITORY}/contents/${DATA_PATH}?ref=${DATA_BRANCH}`;
+var NOTICE_URL = `https://api.github.com/repos/${REPOSITORY}/contents/NOTICE.md?ref=main`;
 
 // src/sync.ts
 async function main() {

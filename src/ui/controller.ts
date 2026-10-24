@@ -33,7 +33,7 @@ export function view(result: UsageResult, elapsed: number) {
     used: data?.usedPercent ?? null, countdown, flags,
     status: data ? statuses[data.accountStatus] : '等待账号数据',
     error: result.query.error ? messages[result.query.error] ?? '查询失败' : '',
-    updated: age !== null && age >= 0 ? `账号数据 ${Math.floor(age / 60_000)} 分钟前更新` : '',
+    updated: age !== null && age >= 0 ? `账号数据 ${Math.floor(age / 60_000)} 分钟前更新` : '账号数据更新时间未知',
   };
 }
 
@@ -48,6 +48,7 @@ export class UsageController {
   private occluded = false;
   private destroyed = false;
   private bridgeError = false;
+  private noticesSignature = '';
   private refreshTimer?: ReturnType<typeof setTimeout>;
   private tickTimer?: ReturnType<typeof setInterval>;
   private readonly ball: HTMLButtonElement;
@@ -85,24 +86,40 @@ export class UsageController {
     this.schedule();
   }
   private text(id: string, text: string) { this.document.getElementById(id)!.textContent = text; }
+  private renderNotices() {
+    const notices = this.data?.notices;
+    const signature = JSON.stringify(notices ?? null);
+    if (signature === this.noticesSignature) return;
+    this.noticesSignature = signature;
+    const container = this.document.getElementById('notices')!;
+    container.replaceChildren();
+    for (const item of notices?.cards ?? []) {
+      const card = this.document.createElement('section');
+      card.className = 'notice-card';
+      const title = this.document.createElement('h2');
+      title.textContent = item.title;
+      const text = this.document.createElement('p');
+      text.textContent = item.text;
+      card.append(title, text);
+      container.append(card);
+    }
+    this.text('notice-status', notices?.error ? '文字暂未同步' : '');
+  }
   private render() {
     if (this.destroyed || this.closed) return;
     this.ball.disabled = this.busy;
     this.ball.setAttribute('aria-busy', String(this.busy));
+    this.renderNotices();
     if (!this.data) {
       if (this.bridgeError) this.text('countdown', '连接失败，点击重试');
       return;
     }
     const display = view(this.data, this.clock.mono() - this.receivedAt);
     this.text('percent', display.percent);
-    const flags = this.bridgeError && !display.flags.includes('旧数据') && this.data.data
-      ? ['旧数据', ...display.flags] : display.flags;
     this.document.querySelector<SVGCircleElement>('#used-ring')!.style.strokeDasharray = `${display.used ?? 0} 100`;
     this.ball.dataset.unknown = String(display.used === null);
-    const stale = flags.includes('旧数据') || flags.includes('可能过时');
     let line = display.countdown === '已到重置时间，待更新' ? '已到期，待更新' : display.countdown;
-    if (stale) line = `旧 · ${line}`;
-    else if (flags.includes('仅供参考')) line = `参考 · ${line}`;
+    if (display.flags.includes('仅供参考')) line = `参考 · ${line}`;
     if (this.data.query.error === 'rate_limited' && this.clock.now() < this.allowed)
       line = `冷却 ${Math.ceil((this.allowed - this.clock.now()) / 1000)}秒`;
     else if (this.data.query.error === 'shared_auth_required') line = '需要 GitHub 权限';
@@ -113,12 +130,8 @@ export class UsageController {
     else if (!this.data.data && (display.error || this.bridgeError)) line = '查询失败，点击重试';
     if (this.busy) line = '正在查询…';
     this.text('countdown', line);
-    this.ball.dataset.warning = String(stale || !!display.error || this.bridgeError || flags.length > 0);
-    this.ball.title = ['植被组额度查询', `已用 ${display.percent}，重置：${display.countdown}`, display.status,
-      flags.join(' · '), display.updated, display.error, this.bridgeError ? '无法连接用量服务' : '',
-      '点击读取最近同步结果；每10分钟检查。GitHub 定时同步可能延迟，不触发实时账号查询。',
-      '使用面板关闭按钮或聚焦后按 Esc 关闭。',
-      '绑定账号共享七天用量，不代表个人花费、账单余额或实际可调用余量。'].filter(Boolean).join('\n');
+    this.ball.dataset.warning = String(this.bridgeError || !!this.data.query.error && this.data.query.error !== 'shared_stale');
+    this.ball.title = [`周额度已用：${display.percent}`, `距离下次重置：${display.countdown}`, display.updated].join('\n');
     this.ball.setAttribute('aria-label', this.ball.title);
   }
   private stopTimers() {
@@ -166,12 +179,16 @@ export class UsageController {
     this.ball.dataset.unknown = 'true';
     this.text('percent', '已关闭');
     this.text('countdown', '点击重开');
+    this.document.getElementById('notices')!.hidden = true;
+    this.document.getElementById('notice-status')!.hidden = true;
     this.ball.setAttribute('aria-label', '已关闭，点击重开');
     try { await this.bridge.close(); } catch { /* The stopped view remains usable when the host keeps the panel open. */ }
   }
   async reopen() {
     if (this.destroyed) return;
     this.closed = false;
+    this.document.getElementById('notices')!.hidden = false;
+    this.document.getElementById('notice-status')!.hidden = false;
     this.render();
     await this.refresh(true);
     this.schedule();

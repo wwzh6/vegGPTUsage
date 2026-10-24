@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "cotemu-usage-ball",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Vegetation Group shared seven-day account usage ring.",
   "author": {
     "name": "Local plugin"

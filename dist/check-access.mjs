@@ -31125,6 +31125,7 @@ var REPOSITORY = "wwzh6/vegGPTUsage";
 var DATA_BRANCH = "quota-data";
 var DATA_PATH = "usage.json";
 var SNAPSHOT_URL = `https://api.github.com/repos/${REPOSITORY}/contents/${DATA_PATH}?ref=${DATA_BRANCH}`;
+var NOTICE_URL = `https://api.github.com/repos/${REPOSITORY}/contents/NOTICE.md?ref=main`;
 
 // src/github.ts
 function run(file, args, input) {
@@ -31192,14 +31193,13 @@ var githubFetch = async (input, init) => {
 // src/check-access.ts
 async function main() {
   const token = await githubCredential();
-  if (!token) throw new Error("authentication");
   const response = await githubFetch(`https://api.github.com/repos/${REPOSITORY}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "User-Agent": "VegetationQuota" },
+    headers: { ...token ? { Authorization: `Bearer ${token}` } : {}, Accept: "application/vnd.github+json", "User-Agent": "VegetationQuota" },
     signal: AbortSignal.timeout(15e3),
     redirect: "error"
   });
   if (!response.ok) throw new Error("access");
-  console.log(JSON.stringify({ githubReadAccess: true, accountApiKeyRequired: false }));
+  console.log(JSON.stringify({ githubReadAccess: true, authenticated: !!token, accountApiKeyRequired: false }));
 }
 main().catch(() => {
   console.error("GitHub access unavailable. Sign in with an account that can read wwzh6/vegGPTUsage.");

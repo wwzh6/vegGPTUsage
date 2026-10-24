@@ -10,7 +10,7 @@ $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
 if (-not $nodeCommand) { throw 'Install Node.js 22.19 or newer, then rerun this script.' }
 $nodeVersion = & $nodeCommand.Source -p 'process.versions.node'
 if ($LASTEXITCODE -ne 0 -or [version]$nodeVersion -lt [version]'22.19.0') { throw 'Node.js 22.19 or newer is required.' }
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Install Git and sign in to an account with read access to wwzh6/vegGPTUsage.' }
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Install Git. Private repositories additionally require GitHub read access.' }
 if (-not $CodexPath) {
     $codexCommand = Get-Command codex -ErrorAction SilentlyContinue
     if ($codexCommand) { $CodexPath = $codexCommand.Source }

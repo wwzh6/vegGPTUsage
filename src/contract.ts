@@ -19,6 +19,7 @@ export type ErrorCode = 'missing_key' | 'invalid_key' | 'key_disabled' | 'owner_
   | 'shared_auth_required' | 'shared_not_ready' | 'shared_unavailable' | 'shared_stale' | 'shared_time_unknown' | 'shared_sync_limited';
 
 export interface State {
+  notices?: NoticeState;
   data: Snapshot | null;
   lastAttemptAtMs: number | null;
   lastCompletedAtMs: number | null;
@@ -28,11 +29,18 @@ export interface State {
   error: ErrorCode | null;
 }
 
+export interface NoticeState {
+  cards: { title: string; text: string }[];
+  fetchedAtMs: number | null;
+  error: 'unavailable' | 'rate_limited' | null;
+}
+
 export interface UsageResult {
+  notices?: NoticeState;
   version: 1;
   data: Snapshot | null;
   serverNowMs: number | null;
-  query: Omit<State, 'data'> & {
+  query: Omit<State, 'data' | 'notices'> & {
     state: 'ok' | 'error' | 'recent' | 'cooldown';
     queried: boolean;
     stale: boolean;
@@ -73,10 +81,10 @@ export function normalize(body: unknown, now: number): Snapshot {
 }
 
 export function result(state: State, now: number, queried = false, mode?: UsageResult['query']['state']): UsageResult {
-  const { data, ...query } = state;
+  const { data, notices, ...query } = state;
   const elapsed = data ? now - data.sampledAtMs : 0;
   return {
-    version: 1, data,
+    version: 1, data, ...(notices ? { notices } : {}),
     serverNowMs: data?.serverMs != null && elapsed >= 0 ? data.serverMs + elapsed : null,
     query: { ...query, state: mode ?? (state.error ? 'error' : 'ok'), queried,
       stale: data !== null && state.error !== null, returnedAtMs: now },
@@ -94,7 +102,7 @@ export const messages: Record<ErrorCode, string> = {
   cache_error: '本地查询状态无法保存', busy: '其他会话正在查询，请稍后再试',
   shared_auth_required: '请使用有仓库读取权限的 GitHub 账号登录',
   shared_not_ready: '共享数据尚未发布，或当前 GitHub 账号没有仓库读取权限',
-  shared_unavailable: '暂时无法读取共享数据', shared_stale: 'GitHub 同步延迟，当前为旧数据',
+  shared_unavailable: '暂时无法读取共享数据', shared_stale: '共享快照等待同步',
   shared_time_unknown: '无法确定共享数据的时间基准',
   shared_sync_limited: '统一查询正在冷却，等待下一次 GitHub 同步',
 };
