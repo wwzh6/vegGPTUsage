@@ -1,6 +1,11 @@
 import { emptyState, messages, normalize, timestamp, type ErrorCode, type State } from './contract.js';
 
-export interface Publication { version: 1; publishedAtMs: number; state: State }
+export interface Publication {
+  version: 1;
+  publishedAtMs: number;
+  state: State;
+  publisherLease?: { owner: string; expiresAtMs: number };
+}
 
 export function decodePublication(value: unknown): Publication {
   const item = value as any;
@@ -21,7 +26,11 @@ export function decodePublication(value: unknown): Publication {
       status: data.accountStatus, updated_at_ms: data.updatedAtMs,
       seven_day: { used_percent: data.usedPercent, resets_at_ms: data.resetsAtMs, enforced: data.enforced } }] }, sampledAtMs);
   }
-  return { version: 1, publishedAtMs, state };
+  const lease = item.publisherLease;
+  if (lease !== undefined && (!lease || typeof lease.owner !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(lease.owner)
+    || timestamp(lease.expiresAtMs) === null)) throw new Error('invalid_response');
+  return { version: 1, publishedAtMs, state,
+    ...(lease ? { publisherLease: { owner: lease.owner, expiresAtMs: lease.expiresAtMs } } : {}) };
 }
 
 export function publication(state: State, now: number): Publication {

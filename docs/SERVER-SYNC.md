@@ -3,7 +3,7 @@
 Use a Linux server with systemd and Node.js >=22.19. Members continue reading
 GitHub snapshots and NOTICE.md; their installations and credentials do not change.
 No inbound HTTP port or domain is required. Outbound HTTPS must reach GitHub and
-cotemu.com. This replaces GitHub's unreliable scheduled trigger.
+cotemu.com. The server provides the regular schedule; GitHub Actions is a backup.
 
 ## Deployment
 
@@ -27,9 +27,11 @@ cotemu.com. This replaces GitHub's unreliable scheduled trigger.
    and Actions read. Never paste credentials into chat, commands,
    repository files or logs. GitHub Secrets cannot be downloaded; the administrator
    must provision the account key once on this server.
-3. In GitHub Actions, disable **Sync shared quota** and wait for every queued or
-   running instance to finish. The server refuses to publish while this workflow
-   is active or its latest ten runs contain unfinished work. Deploy only one server.
+3. During migration from older uncoordinated publishers, disable **Sync shared
+   quota** and wait for running instances to finish. Deploy the current server
+   and the current workflow together, then re-enable the workflow. Deploy only
+   one primary server. Both publishers acquire an expiring lease using a
+   non-forced Git update before querying; a conflicting update prevents querying.
 4. Install the two files from `scripts/systemd/` into `/etc/systemd/system/`.
    The default uses an isolated Node runtime at `/opt/vegetation-quota/runtime`.
    Set ExecStart to the Node path actually verified on the server. Run
@@ -51,14 +53,31 @@ cotemu.com. This replaces GitHub's unreliable scheduled trigger.
 - The server bypasses the client's ten-minute cache, preserving the shared
   15-second request floor, Retry-After and automatic pause after authorization
   errors. Failed queries publish retained data and fail the service visibly.
+- The GitHub workflow sets `VEGETATION_BACKUP_ONLY=true`. It skips queries when
+  the previous query completed less than 20 minutes ago, and takes over on a
+  later workflow run if updates stop. GitHub schedule delays still apply, so
+  20 minutes is an eligibility threshold, not a takeover-time guarantee.
+- For a short recovery drill, pause the primary timer and manually dispatch the
+  workflow with `force_takeover=true`. This bypasses only the freshness/cache
+  wait, preserving the lease, 15-second floor, cooldown and authorization pause.
+  Confirm a successful publication, then resume the primary timer. Normal
+  scheduled runs never set this option.
+- A 120-second lease prevents simultaneous publishers and expires after a crash.
+  Acquiring a lease does not change the snapshot or its publication timestamp.
+  GitHub coordination must be reachable to start a new upstream query.
+- `VEGETATION_PUBLIC_DIRECTORY`, if configured, receives an atomic sanitized
+  `usage.json` copy before GitHub publication. No web endpoint is enabled by this
+  variable; a separate reviewed HTTPS route is needed for client direct reads.
 - After replacing an invalid key, stop the timer and wait for the service to exit.
   Temporarily add `VEGETATION_MANUAL_REFRESH=true` to the root-only environment
   file, start the service once, remove that line, verify success and restart the
   timer. Do not leave manual recovery enabled for scheduled runs.
 - Inspect sanitized results using `journalctl -u vegetation-quota-sync.service`
   and scheduling using `systemctl list-timers vegetation-quota-sync.timer`.
-- To roll back: stop and disable the server timer, stop the service, then re-enable
-  the GitHub workflow. Never operate both publishers concurrently.
+- To use GitHub alone, stop and disable the server timer; the backup workflow
+  will become eligible when the last query is 20 minutes old. Both active
+  publishers must use this lease protocol; do not restore older runtime files
+  while the other publisher remains enabled.
 
 The timer controls query attempts, not upstream availability or when Cotemu
 refreshes account statistics. Clients independently read every ten minutes while

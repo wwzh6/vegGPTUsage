@@ -1,7 +1,8 @@
 import { createRequire } from "node:module"; const require = createRequire(import.meta.url);
 
 // src/sync.ts
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile as writeFile2, rename as rename2, unlink as unlink2 } from "node:fs/promises";
+import { randomUUID as randomUUID2 } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join as join2 } from "node:path";
 
@@ -299,7 +300,14 @@ function decodePublication(value) {
       seven_day: { used_percent: data.usedPercent, resets_at_ms: data.resetsAtMs, enforced: data.enforced }
     }] }, sampledAtMs);
   }
-  return { version: 1, publishedAtMs, state };
+  const lease = item.publisherLease;
+  if (lease !== void 0 && (!lease || typeof lease.owner !== "string" || !/^[a-zA-Z0-9-]{1,80}$/.test(lease.owner) || timestamp(lease.expiresAtMs) === null)) throw new Error("invalid_response");
+  return {
+    version: 1,
+    publishedAtMs,
+    state,
+    ...lease ? { publisherLease: { owner: lease.owner, expiresAtMs: lease.expiresAtMs } } : {}
+  };
 }
 function publication(state, now) {
   return decodePublication({ version: 1, publishedAtMs: now, state });
@@ -360,8 +368,22 @@ var GitPublicationStore = class {
     const tree = await this.git(["write-tree"]);
     const commit = await this.git(["commit-tree", tree, "-p", this.parent, "-m", "Update shared usage snapshot"]);
     await this.git(["push", "--quiet", "origin", `${commit}:refs/heads/${DATA_BRANCH}`]);
+    this.parent = commit;
   }
 };
+
+// src/publisher-policy.ts
+var LEASE_MS = 12e4;
+var FAILOVER_MS = 2 * INTERVAL;
+function skipPublication(previous, backup, now) {
+  if (previous?.publisherLease && previous.publisherLease.expiresAtMs > now) return "publisher_busy";
+  const completed = previous?.state.lastCompletedAtMs;
+  if (backup && completed != null && now - completed < FAILOVER_MS) return "primary_recent";
+  return null;
+}
+function leasePublication(previous, owner, now) {
+  return { ...previous ?? publication(emptyState(), now), publisherLease: { owner, expiresAtMs: now + LEASE_MS } };
+}
 
 // src/sync.ts
 async function main() {
@@ -389,19 +411,15 @@ async function main() {
   const root = await mkdtemp(join2(tmpdir(), "vegetation-sync-"));
   try {
     const git = useGit ? new GitPublicationStore(join2(root, "git")) : null;
-    const ref = git ? null : await api(`/git/ref/heads/${DATA_BRANCH}`, "GET", void 0, true);
-    const existing = ref ? await api(`/contents/${DATA_PATH}?ref=${DATA_BRANCH}`) : null;
+    let ref = git ? null : await api(`/git/ref/heads/${DATA_BRANCH}`, "GET", void 0, true);
+    const existing = ref ? await api(`/contents/${DATA_PATH}?ref=${ref.object.sha}`) : null;
     const previous = git ? await git.read() : existing ? decodePublication(JSON.parse(Buffer.from(existing.content, "base64").toString("utf8"))) : null;
-    const service = new UsageService(process.env.COTEMU_API_KEY, root);
-    if (previous) await service.store.locked(() => service.store.write(previous.state));
-    const scheduled = process.env.VEGETATION_SCHEDULED_REFRESH === "true" && !previous?.state.autoPaused;
-    const usage = await service.get(process.env.VEGETATION_MANUAL_REFRESH === "true" || scheduled);
-    const { state: _mode, queried: _queried, stale: _stale, returnedAtMs: _returned, ...query } = usage.query;
-    const state = { ...query, data: usage.data };
-    const content = JSON.stringify(publication(state, Date.now())) + "\n";
-    if (git) await git.publish(content);
-    else {
-      const blob = await api("/git/blobs", "POST", { content, encoding: "utf-8" });
+    const publish = async (content2) => {
+      if (git) {
+        await git.publish(content2);
+        return;
+      }
+      const blob = await api("/git/blobs", "POST", { content: content2, encoding: "utf-8" });
       const parent = ref ? await api(`/git/commits/${ref.object.sha}`) : null;
       const tree = await api("/git/trees", "POST", {
         ...parent ? { base_tree: parent.tree.sha } : {},
@@ -414,7 +432,36 @@ async function main() {
       });
       if (ref) await api(`/git/refs/heads/${DATA_BRANCH}`, "PATCH", { sha: commit.sha, force: false });
       else await api("/git/refs", "POST", { ref: `refs/heads/${DATA_BRANCH}`, sha: commit.sha });
+      ref = { object: { sha: commit.sha } };
+    };
+    const forceTakeover = process.env.VEGETATION_FORCE_TAKEOVER === "true";
+    const skipped = skipPublication(previous, process.env.VEGETATION_BACKUP_ONLY === "true" && !forceTakeover, Date.now());
+    if (skipped) {
+      console.log(JSON.stringify({ published: false, queried: false, skipped }));
+      return;
     }
+    const lease = leasePublication(previous, randomUUID2(), Date.now());
+    await publish(JSON.stringify(lease) + "\n");
+    if (Date.now() >= lease.publisherLease.expiresAtMs - 3e4) throw new Error("lease_expired");
+    const service = new UsageService(process.env.COTEMU_API_KEY, root);
+    if (previous) await service.store.locked(() => service.store.write(previous.state));
+    const scheduled = (process.env.VEGETATION_SCHEDULED_REFRESH === "true" || forceTakeover) && !previous?.state.autoPaused;
+    const usage = await service.get(process.env.VEGETATION_MANUAL_REFRESH === "true" || scheduled);
+    const { state: _mode, queried: _queried, stale: _stale, returnedAtMs: _returned, ...query } = usage.query;
+    const state = { ...query, data: usage.data };
+    const content = JSON.stringify(publication(state, Date.now())) + "\n";
+    const mirror = process.env.VEGETATION_PUBLIC_DIRECTORY;
+    if (mirror) {
+      const temporary = join2(mirror, `.usage-${randomUUID2()}.tmp`);
+      try {
+        await writeFile2(temporary, content, { mode: 420 });
+        await rename2(temporary, join2(mirror, "usage.json"));
+      } finally {
+        await unlink2(temporary).catch(() => {
+        });
+      }
+    }
+    await publish(content);
     console.log(JSON.stringify({ published: true, queried: usage.query.queried, state: state.error ?? "ok" }));
     if (state.error && process.env.VEGETATION_FAIL_ON_QUERY_ERROR === "true") process.exitCode = 1;
   } finally {

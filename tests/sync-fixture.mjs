@@ -7,10 +7,12 @@ import { body } from './fixture.mjs';
 const mode = process.env.TEST_SYNC_MODE;
 const now = Date.now();
 const previous = publication({ ...emptyState(), data: normalize(body(), now - 60_000),
+  lastCompletedAtMs: ['backup-fresh', 'backup-forced'].includes(mode) ? now - 60_000 : mode === 'backup-stale' ? now - 1_200_001 : null,
   nextAllowedAtMs: mode === 'cooldown' ? now + 120_000 : mode === 'recent' ? now + 10_000 : 0,
-  nextRefreshAtMs: mode === 'scheduled-cache' ? now + 1000 : 0,
+  nextRefreshAtMs: mode === 'scheduled-cache' ? now + 1000 : mode === 'backup-forced' ? now + 540_000 : 0,
   error: mode === 'paused' ? 'invalid_key' : mode === 'cooldown' ? 'rate_limited' : null,
   autoPaused: mode === 'paused' }, now - 60_000);
+if (mode === 'publisher-busy') previous.publisherLease = { owner: 'other-publisher', expiresAtMs: now + 60_000 };
 let upstreamCalls = 0;
 let saved;
 globalThis.fetch = async (url, options = {}) => {
@@ -35,7 +37,7 @@ globalThis.fetch = async (url, options = {}) => {
     saved = JSON.parse(content);
     return new Response(JSON.stringify({ sha: 'blob' }));
   }
-  if (url.endsWith('/git/commits/parent')) return new Response(JSON.stringify({ tree: { sha: 'previous-tree' } }));
+  if (url.endsWith('/git/commits/parent') || url.endsWith('/git/commits/commit')) return new Response(JSON.stringify({ tree: { sha: 'previous-tree' } }));
   if (url.endsWith('/git/trees')) return new Response(JSON.stringify({ sha: 'tree' }));
   if (url.endsWith('/git/commits')) return new Response(JSON.stringify({ sha: 'commit' }));
   if (url.endsWith('/git/refs/heads/quota-data') || url.endsWith('/git/refs')) {

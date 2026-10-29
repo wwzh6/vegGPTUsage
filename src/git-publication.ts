@@ -36,5 +36,6 @@ export class GitPublicationStore {
     const tree = await this.git(['write-tree']);
     const commit = await this.git(['commit-tree', tree, '-p', this.parent, '-m', 'Update shared usage snapshot']);
     await this.git(['push', '--quiet', 'origin', `${commit}:refs/heads/${DATA_BRANCH}`]);
+    this.parent = commit;
   }
 }

@@ -17,7 +17,7 @@ node dist/check-access.mjs
 
 ## 统一配置
 
-管理员在统一查询服务器配置账号 API Key。完整密钥不进入源码、安装包或成员电脑。部署方法见 [服务器同步](docs/SERVER-SYNC.md)，GitHub Actions 保留为备用方式。
+管理员在统一查询服务器配置账号 API Key，GitHub Actions Secret 保留一份供自动备用查询。完整密钥不进入源码、安装包或成员电脑。部署方法见 [服务器同步](docs/SERVER-SYNC.md)。
 
 服务器按每小时第 0、10、20、30、40、50 分钟查询，将脱敏结果发布到 GitHub 的 `quota-data` 分支。客户端可见时独立每十分钟检查更新，点击只读取最近快照，不直接查询账号。两个周期独立，新快照可能再等待最多一个客户端刷新周期。网络故障、上游数据延迟和限流仍可能推迟成功更新。
 
@@ -26,7 +26,7 @@ node dist/check-access.mjs
 - 圆环保持两行。悬停只显示已用比例、距重置时间、账号数据年龄；不显示“旧”标签。查询失败保留上次值，不伪造更新时间。
 - 下方文字卡片由 `main/NOTICE.md` 控制，额度查询时一并读取，无需构建或重装。见 [文字编辑说明](docs/NOTICES.md)。
 - 数据属于统一密钥绑定账号，可能包含其他使用者，不代表个人花费、账单余额或实际可调用余量。
-- 普通成员只读取仓库数据。服务器管理员执行 `systemctl start vegetation-quota-sync.service` 可立即查询。GitHub 的 `Sync shared quota` 在服务器接管期间保持停用；鉴权错误恢复见服务器同步说明。
+- 普通成员只读取仓库数据，无需为后台主备升级插件。服务器管理员执行 `systemctl start vegetation-quota-sync.service` 可立即查询。GitHub 的 `Sync shared quota` 在快照超过 20 分钟未查询时才尝试接管；调度可能延迟。主备共用查询锁。鉴权错误恢复见服务器同步说明。
 - 同步端仅访问账号只读接口，不使用队伍码、队伍管理令牌或模型接口。接口依据：https://docs.cotemu.com/agent-api.md
 - 隐藏停止客户端轮询；用面板原生按钮或聚焦圆环按 Esc 关闭。关闭客户端不影响组内统一同步任务。
 

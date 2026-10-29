@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '7,17,27,37,47,57 * * * *'
   workflow_dispatch:
+    inputs:
+      force_takeover:
+        description: 'Immediate backup takeover for an administrator drill; pause the primary timer first'
+        type: boolean
+        default: false
 permissions:
   contents: write
 concurrency:
@@ -23,5 +28,6 @@ jobs:
         env:
           COTEMU_API_KEY: ${{ secrets.COTEMU_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
-          VEGETATION_MANUAL_REFRESH: ${{ github.event_name == 'workflow_dispatch' }}
+          VEGETATION_BACKUP_ONLY: 'true'
+          VEGETATION_FORCE_TAKEOVER: ${{ github.event.inputs.force_takeover == 'true' }}
         run: node dist/sync.mjs

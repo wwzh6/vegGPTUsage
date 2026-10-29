@@ -1,6 +1,6 @@
 # 管理员统一配置
 
-只需管理员配置一次。当前使用服务器定时同步，见 [SERVER-SYNC.md](SERVER-SYNC.md)。普通成员不需要账号 API Key。以下 GitHub Actions 配置保留为备用方案；不能与服务器发布同时启用。
+只需管理员配置一次。当前使用服务器定时同步，GitHub Actions 自动备用，见 [SERVER-SYNC.md](SERVER-SYNC.md)。普通成员不需要账号 API Key。只有支持同一查询锁协议的新版本才能同时启用；旧版发布程序必须先停用。
 
 ## 初次设置与更换密钥
 

@@ -29,4 +29,7 @@ test('deploy-key transport preserves unrelated files and rejects concurrent publ
   assert.equal(git(['--git-dir', remote, 'show', 'quota-data:preserved.txt']), 'keep');
   await assert.rejects(two.publish(JSON.stringify({ ...previous, publishedAtMs: previous.publishedAtMs + 2000 })), /git_publication_failed/);
   assert.equal(git(['--git-dir', remote, 'show', 'quota-data:usage.json']), first);
+  const final = JSON.stringify({ ...previous, publishedAtMs: previous.publishedAtMs + 3000 });
+  await one.publish(final);
+  assert.equal(git(['--git-dir', remote, 'show', 'quota-data:usage.json']), final);
 });

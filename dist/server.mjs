@@ -60071,7 +60071,14 @@ function decodePublication(value) {
       seven_day: { used_percent: data.usedPercent, resets_at_ms: data.resetsAtMs, enforced: data.enforced }
     }] }, sampledAtMs);
   }
-  return { version: 1, publishedAtMs, state };
+  const lease = item.publisherLease;
+  if (lease !== void 0 && (!lease || typeof lease.owner !== "string" || !/^[a-zA-Z0-9-]{1,80}$/.test(lease.owner) || timestamp(lease.expiresAtMs) === null)) throw new Error("invalid_response");
+  return {
+    version: 1,
+    publishedAtMs,
+    state,
+    ...lease ? { publisherLease: { owner: lease.owner, expiresAtMs: lease.expiresAtMs } } : {}
+  };
 }
 
 // src/github.ts
