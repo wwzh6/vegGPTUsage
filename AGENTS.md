@@ -6,8 +6,8 @@ Members need Node.js >=22.19 and Git. Private repositories require GitHub read a
 need an account API key, npm, Python, or build dependencies.
 
 Never request credentials in chat, print them, commit them, or distribute the
-account key to clients. Only the administrator uses `docs/ADMIN-SETUP.md` to
-configure the shared account key in GitHub Actions Secrets. Do not inspect
+account key to clients. Only the administrator provisions central synchronization
+using `docs/SERVER-SYNC.md` or the GitHub fallback in `docs/ADMIN-SETUP.md`. Do not inspect
 unrelated credentials or change model/provider settings or repository visibility.
 
 The client reads sanitized snapshots from quota-data and text cards from main/NOTICE.md. A click

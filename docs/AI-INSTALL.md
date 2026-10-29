@@ -1,6 +1,6 @@
 # AI 安装工作流
 
-普通成员不需要 COTEMU_API_KEY。统一密钥仅由管理员保存到 GitHub Actions Secret。
+普通成员不需要 COTEMU_API_KEY。统一查询由管理员维护，安装时不要读取或配置账号密钥。
 
 ## 提示词
 
@@ -19,6 +19,6 @@
 ## 运行边界
 
 - 客户端读取 `quota-data/usage.json` 与 `main/NOTICE.md`；每十分钟自动检查，点击手动读取，十五秒内合并重复请求。不会调用 Cotemu，也不会通过点击触发 Actions。
-- GitHub 集中任务按十分钟计划运行，排队可能延迟；旧数据会被标记。它独立于客户端运行，关闭所有圆环也不会停止统一同步。
+- 服务器每十分钟查询并发布到 GitHub；客户端可见时独立每十分钟读取。关闭所有圆环不会停止统一同步。查询失败保留原值与真实更新时间，界面不显示“旧”标签。
 - Windows 优先使用显式 `VEGETATION_HTTPS_PROXY` 或系统已启用的静态代理；无系统静态代理时读取 HTTPS_PROXY/HTTP_PROXY。PAC 网络可设置前述显式变量。
 - 安装后若 GitHub 登录失效，在本机重新登录并点击圆环。通知内容在仓库 `NOTICE.md` 编辑，按二级标题分卡片。统一密钥错误由管理员按 `docs/ADMIN-SETUP.md` 处理。

@@ -6,7 +6,7 @@
 
 > 请安装 https://github.com/wwzh6/vegGPTUsage 的“植被组额度查询”。按 AGENTS.md 和 docs/AI-INSTALL.md 使用预构建文件安装，复用本机 GitHub 登录验证仓库读取权限，不要索取或配置 COTEMU_API_KEY。
 
-支持 Windows、Node.js ≥22.19 和 Git。当前仓库是私有的，成员需具备读取权限；如果管理员将仓库公开，新版支持匿名读取，无需 GitHub 登录。运行文件已经构建，不需要 npm 或 Python。
+支持 Windows、Node.js ≥22.19 和 Git。当前公开仓库支持匿名读取，无需 GitHub 登录；私有部署需要读取权限。运行文件已经构建，不需要 npm 或 Python。
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1
@@ -17,16 +17,16 @@ node dist/check-access.mjs
 
 ## 统一配置
 
-管理员把绑定账号的 API Key 保存为仓库的 `COTEMU_API_KEY` Actions Secret。完整密钥不进入源码、安装包或成员电脑。配置方法见 [管理员设置](docs/ADMIN-SETUP.md)。
+管理员在统一查询服务器配置账号 API Key。完整密钥不进入源码、安装包或成员电脑。部署方法见 [服务器同步](docs/SERVER-SYNC.md)，GitHub Actions 保留为备用方式。
 
-GitHub Actions 按十分钟计划查询一次，只将整理后的用量、重置时间和查询状态发布到 `quota-data` 分支。任务受 GitHub 排程和 Actions 可用额度约束，可能延迟。客户端每十分钟检查更新，点击只读取最近的同步结果，不直接查询账号，也不触发工作流。
+服务器按每小时第 0、10、20、30、40、50 分钟查询，将脱敏结果发布到 GitHub 的 `quota-data` 分支。客户端可见时独立每十分钟检查更新，点击只读取最近快照，不直接查询账号。两个周期独立，新快照可能再等待最多一个客户端刷新周期。网络故障、上游数据延迟和限流仍可能推迟成功更新。
 
 ## 显示与权限
 
 - 圆环保持两行。悬停只显示已用比例、距重置时间、账号数据年龄；不显示“旧”标签。查询失败保留上次值，不伪造更新时间。
 - 下方文字卡片由 `main/NOTICE.md` 控制，额度查询时一并读取，无需构建或重装。见 [文字编辑说明](docs/NOTICES.md)。
 - 数据属于统一密钥绑定账号，可能包含其他使用者，不代表个人花费、账单余额或实际可调用余量。
-- 普通成员只读取仓库数据。管理员手动运行 `Sync shared quota` 可要求重新查询；鉴权失败后需管理员修复并手动重试。
+- 普通成员只读取仓库数据。服务器管理员执行 `systemctl start vegetation-quota-sync.service` 可立即查询。GitHub 的 `Sync shared quota` 在服务器接管期间保持停用；鉴权错误恢复见服务器同步说明。
 - 同步端仅访问账号只读接口，不使用队伍码、队伍管理令牌或模型接口。接口依据：https://docs.cotemu.com/agent-api.md
 - 隐藏停止客户端轮询；用面板原生按钮或聚焦圆环按 Esc 关闭。关闭客户端不影响组内统一同步任务。
 

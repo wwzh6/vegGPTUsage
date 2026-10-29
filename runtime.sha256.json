@@ -4,9 +4,9 @@
   "assets/icon.svg": "f736458640539f7db87e116b1d9bd87b9db5804082e6630b91f827c1e2ea8f14",
   "dist/check-access.mjs": "038d568b3a4d8612e2b59f8849ba288d6abcf250921e148e463ddda716279cd3",
   "dist/server.mjs": "4eaf08ef1cf9a3217b708bae08b943675ea554b982ba2baa205f992b0dd602d4",
-  "dist/sync.mjs": "fbf82350bacdb6c24d2098d0c80c4d28f1efa184ea4c908912583a196bd0dfcb",
+  "dist/sync.mjs": "ca308ef2874663171ccd169e2320c3ee0f3abe0264fa8c2a6b759d2e3034a071",
   "dist/usage-ball.html": "2ff1f81cbede5fc6d4c320274325199d746bca67fb0d3d5c0aa80c08ebe53689",
   "mcp.json": "7e1d320d2b4f7d824c0a3c00cec1a98306569b396e7611422e4c69fb2a561d54",
   "plugin.json": "28968d0feb0a9d1cdd2cb38fc6a24b7d1f4a53e41dfd8dd7a0c9fc5cdb452b06",
-  "skills/cotemu-usage/SKILL.md": "330cd3ff84262a317c3d8b54b988f862c483eb1a145fe8d2a3337852d6e9c688"
+  "skills/cotemu-usage/SKILL.md": "c05e03dd1d2791a49ab9509a8d10816171377a85895bd8ee012afb35dccecf9a"
 }

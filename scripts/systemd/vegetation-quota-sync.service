@@ -1,0 +1,19 @@
+[Unit]
+Description=Vegetation quota snapshot publisher
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=vegetation-quota
+Group=vegetation-quota
+WorkingDirectory=/opt/vegetation-quota/current
+EnvironmentFile=/etc/vegetation-quota/sync.env
+ExecStart=/opt/vegetation-quota/runtime/bin/node /opt/vegetation-quota/current/scripts/server-sync.mjs
+TimeoutStartSec=180
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true

@@ -312,10 +312,62 @@ var DATA_PATH = "usage.json";
 var SNAPSHOT_URL = `https://api.github.com/repos/${REPOSITORY}/contents/${DATA_PATH}?ref=${DATA_BRANCH}`;
 var NOTICE_URL = `https://api.github.com/repos/${REPOSITORY}/contents/NOTICE.md?ref=main`;
 
+// src/git-publication.ts
+import { execFile } from "node:child_process";
+import { mkdir as mkdir2 } from "node:fs/promises";
+var GitPublicationStore = class {
+  constructor(root, remote = "ssh://git@ssh.github.com:443/wwzh6/vegGPTUsage.git") {
+    this.root = root;
+    this.remote = remote;
+  }
+  root;
+  remote;
+  parent = "";
+  git(args, input) {
+    const { COTEMU_API_KEY: _key, GITHUB_TOKEN: _token, ...env } = process.env;
+    return new Promise((resolve, reject) => {
+      const child = execFile("git", ["-c", "core.hooksPath=/dev/null", ...args], {
+        cwd: this.root,
+        env: {
+          ...env,
+          GIT_TERMINAL_PROMPT: "0",
+          GIT_AUTHOR_NAME: "Vegetation Quota",
+          GIT_AUTHOR_EMAIL: "quota@localhost",
+          GIT_COMMITTER_NAME: "Vegetation Quota",
+          GIT_COMMITTER_EMAIL: "quota@localhost"
+        },
+        timeout: 3e4,
+        maxBuffer: 256 * 1024,
+        windowsHide: true
+      }, (error, stdout) => error ? reject(new Error("git_publication_failed")) : resolve(stdout.trim()));
+      child.stdin?.end(input);
+    });
+  }
+  async read() {
+    await mkdir2(this.root, { recursive: true });
+    await this.git(["init", "--bare", "--quiet"]);
+    await this.git(["remote", "add", "origin", this.remote]);
+    await this.git(["fetch", "--quiet", "--depth=1", "--no-tags", "origin", DATA_BRANCH]);
+    this.parent = await this.git(["rev-parse", "FETCH_HEAD"]);
+    return decodePublication(JSON.parse(await this.git(["show", `${this.parent}:${DATA_PATH}`])));
+  }
+  async publish(content) {
+    if (!this.parent) throw new Error("git_parent_missing");
+    decodePublication(JSON.parse(content));
+    await this.git(["read-tree", this.parent]);
+    const blob = await this.git(["hash-object", "-w", "--stdin"], content);
+    await this.git(["update-index", "--add", "--cacheinfo", `100644,${blob},${DATA_PATH}`]);
+    const tree = await this.git(["write-tree"]);
+    const commit = await this.git(["commit-tree", tree, "-p", this.parent, "-m", "Update shared usage snapshot"]);
+    await this.git(["push", "--quiet", "origin", `${commit}:refs/heads/${DATA_BRANCH}`]);
+  }
+};
+
 // src/sync.ts
 async function main() {
   const token = process.env.GITHUB_TOKEN;
-  if (!token || process.env.GITHUB_REPOSITORY !== REPOSITORY) throw new Error("configuration");
+  const useGit = process.env.VEGETATION_PUBLISH_TRANSPORT === "git";
+  if (!token && !useGit || process.env.GITHUB_REPOSITORY !== REPOSITORY) throw new Error("configuration");
   const api = async (path, method = "GET", body, allowMissing = false) => {
     const response = await fetch(`https://api.github.com/repos/${REPOSITORY}${path}`, {
       method,
@@ -334,31 +386,37 @@ async function main() {
     if (!response.ok) throw new Error("github");
     return response.json();
   };
-  const ref = await api(`/git/ref/heads/${DATA_BRANCH}`, "GET", void 0, true);
-  const existing = ref ? await api(`/contents/${DATA_PATH}?ref=${DATA_BRANCH}`) : null;
-  const previous = existing ? decodePublication(JSON.parse(Buffer.from(existing.content, "base64").toString("utf8"))) : null;
   const root = await mkdtemp(join2(tmpdir(), "vegetation-sync-"));
   try {
+    const git = useGit ? new GitPublicationStore(join2(root, "git")) : null;
+    const ref = git ? null : await api(`/git/ref/heads/${DATA_BRANCH}`, "GET", void 0, true);
+    const existing = ref ? await api(`/contents/${DATA_PATH}?ref=${DATA_BRANCH}`) : null;
+    const previous = git ? await git.read() : existing ? decodePublication(JSON.parse(Buffer.from(existing.content, "base64").toString("utf8"))) : null;
     const service = new UsageService(process.env.COTEMU_API_KEY, root);
     if (previous) await service.store.locked(() => service.store.write(previous.state));
-    const usage = await service.get(process.env.VEGETATION_MANUAL_REFRESH === "true");
+    const scheduled = process.env.VEGETATION_SCHEDULED_REFRESH === "true" && !previous?.state.autoPaused;
+    const usage = await service.get(process.env.VEGETATION_MANUAL_REFRESH === "true" || scheduled);
     const { state: _mode, queried: _queried, stale: _stale, returnedAtMs: _returned, ...query } = usage.query;
     const state = { ...query, data: usage.data };
     const content = JSON.stringify(publication(state, Date.now())) + "\n";
-    const blob = await api("/git/blobs", "POST", { content, encoding: "utf-8" });
-    const parent = ref ? await api(`/git/commits/${ref.object.sha}`) : null;
-    const tree = await api("/git/trees", "POST", {
-      ...parent ? { base_tree: parent.tree.sha } : {},
-      tree: [{ path: DATA_PATH, mode: "100644", type: "blob", sha: blob.sha }]
-    });
-    const commit = await api("/git/commits", "POST", {
-      message: "Update shared usage snapshot",
-      tree: tree.sha,
-      parents: ref ? [ref.object.sha] : []
-    });
-    if (ref) await api(`/git/refs/heads/${DATA_BRANCH}`, "PATCH", { sha: commit.sha, force: false });
-    else await api("/git/refs", "POST", { ref: `refs/heads/${DATA_BRANCH}`, sha: commit.sha });
+    if (git) await git.publish(content);
+    else {
+      const blob = await api("/git/blobs", "POST", { content, encoding: "utf-8" });
+      const parent = ref ? await api(`/git/commits/${ref.object.sha}`) : null;
+      const tree = await api("/git/trees", "POST", {
+        ...parent ? { base_tree: parent.tree.sha } : {},
+        tree: [{ path: DATA_PATH, mode: "100644", type: "blob", sha: blob.sha }]
+      });
+      const commit = await api("/git/commits", "POST", {
+        message: "Update shared usage snapshot",
+        tree: tree.sha,
+        parents: ref ? [ref.object.sha] : []
+      });
+      if (ref) await api(`/git/refs/heads/${DATA_BRANCH}`, "PATCH", { sha: commit.sha, force: false });
+      else await api("/git/refs", "POST", { ref: `refs/heads/${DATA_BRANCH}`, sha: commit.sha });
+    }
     console.log(JSON.stringify({ published: true, queried: usage.query.queried, state: state.error ?? "ok" }));
+    if (state.error && process.env.VEGETATION_FAIL_ON_QUERY_ERROR === "true") process.exitCode = 1;
   } finally {
     await rm(root, { recursive: true, force: true });
   }
