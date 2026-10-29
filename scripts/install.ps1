@@ -82,4 +82,6 @@ $catalog = @{
 if ($LASTEXITCODE -ne 0) { throw 'Marketplace registration failed.' }
 & $CodexPath plugin add 'cotemu-usage-ball@cotemu-local' --json
 if ($LASTEXITCODE -ne 0) { throw 'Plugin installation failed.' }
-[PSCustomObject]@{ version = $manifest.version; installed = $true; accountApiKeyRequired = $false; source = 'GitHub shared snapshot'; restartRequired = $true } | ConvertTo-Json
+[PSCustomObject]@{ version = $manifest.version; installed = $true; accountApiKeyRequired = $false; source = 'HTTPS primary with GitHub fallback'; restartRequired = $true } | ConvertTo-Json
+
+Write-Output 'Usage: reopen Codex, then open Vegetation quota from the plugin entry. Click the ring to refresh; visible panels refresh every 10 minutes. Hover for usage, reset time and data age. No account API key is required.'

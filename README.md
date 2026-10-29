@@ -19,7 +19,7 @@ node dist/check-access.mjs
 
 管理员在统一查询服务器配置账号 API Key，GitHub Actions Secret 保留一份供自动备用查询。完整密钥不进入源码、安装包或成员电脑。部署方法见 [服务器同步](docs/SERVER-SYNC.md)。
 
-服务器按每小时第 0、10、20、30、40、50 分钟查询，将脱敏结果发布到 GitHub 的 `quota-data` 分支。客户端可见时独立每十分钟检查更新，点击只读取最近快照，不直接查询账号。两个周期独立，新快照可能再等待最多一个客户端刷新周期。网络故障、上游数据延迟和限流仍可能推迟成功更新。
+服务器按每小时第 0、10、20、30、40、50 分钟查询，将脱敏结果保存到 HTTPS 接口并发布到 GitHub 的 `quota-data` 分支。0.5.0 客户端优先读取 `https://snowsports.top/vegetation-quota/usage.json`，失败、三秒超时或快照停止更新时回退 GitHub。客户端可见时独立每十分钟检查，点击只读取快照；两个周期独立，上游数据和网络仍可能延迟。
 
 ## 显示与权限
 
@@ -30,7 +30,7 @@ node dist/check-access.mjs
 - 同步端仅访问账号只读接口，不使用队伍码、队伍管理令牌或模型接口。接口依据：https://docs.cotemu.com/agent-api.md
 - 隐藏停止客户端轮询；用面板原生按钮或聚焦圆环按 Esc 关闭。关闭客户端不影响组内统一同步任务。
 
-内部插件 ID 保留 `cotemu-usage-ball@cotemu-local`，用于原地升级。旧版电脑需要升级到 0.3.0 才会改用共享数据。客户端缓存仅含脱敏数据；GitHub 凭证从 Git Credential Manager 或 GitHub CLI 读取，不写入缓存。
+内部插件 ID 保留 `cotemu-usage-ball@cotemu-local`。0.3/0.4 客户端继续读取 GitHub，无需立即升级；要使用直连，运行同一安装脚本原地升级到 0.5.0 并重新打开 Codex，无需卸载或重配密钥。公开读取不检查登录；只有私有仓库拒绝匿名访问时才尝试本机 GitHub 凭证，凭证仅发送到 GitHub，不写入缓存。
 
 ## 开发与发布
 

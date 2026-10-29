@@ -31126,6 +31126,7 @@ var DATA_BRANCH = "quota-data";
 var DATA_PATH = "usage.json";
 var SNAPSHOT_URL = `https://api.github.com/repos/${REPOSITORY}/contents/${DATA_PATH}?ref=${DATA_BRANCH}`;
 var NOTICE_URL = `https://api.github.com/repos/${REPOSITORY}/contents/NOTICE.md?ref=main`;
+var PRIMARY_SNAPSHOT_URL = "https://snowsports.top/vegetation-quota/usage.json";
 
 // src/github.ts
 function run(file, args, input) {
@@ -31182,6 +31183,8 @@ async function proxyAddress() {
 }
 var dispatcher;
 var githubFetch = async (input, init) => {
+  if (String(input) === PRIMARY_SNAPSHOT_URL)
+    return await (0, import_undici.fetch)(input, init);
   dispatcher ??= proxyAddress().then((address) => address ? new import_undici.ProxyAgent(address) : void 0);
   const agent = await dispatcher;
   return await (0, import_undici.fetch)(

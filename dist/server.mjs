@@ -42435,9 +42435,9 @@ var require_sqlite_cache_store = __commonJS({
         let compressed = null;
         let storedBody = body;
         if (body && hasZstd && (size > this.#compressThreshold || isCompressibleContentType(getContentType(value.headers)))) {
-          const candidate = zstdCompressSync(body);
-          if (candidate.byteLength < body.byteLength) {
-            storedBody = candidate;
+          const candidate2 = zstdCompressSync(body);
+          if (candidate2.byteLength < body.byteLength) {
+            storedBody = candidate2;
             compressed = "zstd";
           }
         }
@@ -43106,7 +43106,7 @@ var require_response = __commonJS({
     var setResponseHeaders;
     var getResponseState;
     var setResponseState;
-    var Response = class {
+    var Response2 = class {
       /** @type {Headers} */
       #headers;
       #state;
@@ -43267,8 +43267,8 @@ var require_response = __commonJS({
         };
       }
     };
-    mixinBody(Response, getResponseState, webidl.is.Response);
-    Object.defineProperties(Response.prototype, {
+    mixinBody(Response2, getResponseState, webidl.is.Response);
+    Object.defineProperties(Response2.prototype, {
       type: kEnumerableProperty,
       url: kEnumerableProperty,
       status: kEnumerableProperty,
@@ -43284,7 +43284,7 @@ var require_response = __commonJS({
         configurable: true
       }
     });
-    Object.defineProperties(Response, {
+    Object.defineProperties(Response2, {
       json: kEnumerableProperty,
       redirect: kEnumerableProperty,
       error: kEnumerableProperty
@@ -43417,7 +43417,7 @@ var require_response = __commonJS({
       }
     }
     function fromInnerResponse(innerResponse, guard) {
-      const response = new Response(kConstruct);
+      const response = new Response2(kConstruct);
       setResponseState(response, innerResponse);
       const headers = new Headers(kConstruct);
       setResponseHeaders(response, headers);
@@ -43477,7 +43477,7 @@ var require_response = __commonJS({
       makeResponse,
       makeAppropriateNetworkError,
       filterResponse,
-      Response,
+      Response: Response2,
       cloneResponse,
       fromInnerResponse,
       getResponseState
@@ -60091,6 +60091,7 @@ var DATA_BRANCH = "quota-data";
 var DATA_PATH = "usage.json";
 var SNAPSHOT_URL = `https://api.github.com/repos/${REPOSITORY}/contents/${DATA_PATH}?ref=${DATA_BRANCH}`;
 var NOTICE_URL = `https://api.github.com/repos/${REPOSITORY}/contents/NOTICE.md?ref=main`;
+var PRIMARY_SNAPSHOT_URL = "https://snowsports.top/vegetation-quota/usage.json";
 
 // src/github.ts
 function run(file2, args, input) {
@@ -60147,6 +60148,8 @@ async function proxyAddress() {
 }
 var dispatcher;
 var githubFetch = async (input, init) => {
+  if (String(input) === PRIMARY_SNAPSHOT_URL)
+    return await (0, import_undici.fetch)(input, init);
   dispatcher ??= proxyAddress().then((address) => address ? new import_undici.ProxyAgent(address) : void 0);
   const agent = await dispatcher;
   return await (0, import_undici.fetch)(
@@ -60165,6 +60168,44 @@ function retryDelay(header, now) {
   }
   const date5 = Date.parse(value);
   return Number.isFinite(date5) ? Math.max(MIN_INTERVAL, date5 - now) : INTERVAL;
+}
+
+// src/snapshot-reader.ts
+async function candidate(response) {
+  if (!response.ok) throw new Error("snapshot_unavailable");
+  const text = await response.text();
+  if (text.length > 32768) throw new Error("invalid_response");
+  const value = decodePublication(JSON.parse(text));
+  const reference = Date.parse(response.headers.get("Date") ?? "");
+  return { value, reference, response: new Response(JSON.stringify(value), {
+    headers: { ...Number.isFinite(reference) ? { Date: new Date(reference).toUTCString() } : {} }
+  }) };
+}
+async function readSnapshot(primary, fetcher, github, minimumPublishedAtMs = 0) {
+  let direct;
+  if (primary) {
+    try {
+      direct = await candidate(await fetcher(primary, {
+        headers: { Accept: "application/json", "User-Agent": "VegetationQuota" },
+        redirect: "error",
+        signal: AbortSignal.timeout(3e3)
+      }));
+      const { value, reference } = direct;
+      const completed = value.state.lastCompletedAtMs;
+      if (value.state.data && !value.state.error && value.publishedAtMs >= minimumPublishedAtMs && completed !== null && reference >= value.publishedAtMs - 1e3 && reference - completed <= INTERVAL + 3e4) return direct.response;
+    } catch {
+      direct = void 0;
+    }
+  }
+  try {
+    const fallback = await github();
+    if (!direct) return fallback;
+    const backup = await candidate(fallback);
+    return backup.value.publishedAtMs >= direct.value.publishedAtMs ? backup.response : direct.response;
+  } catch (error40) {
+    if (direct) return direct.response;
+    throw error40;
+  }
 }
 
 // src/notices.ts
@@ -60190,15 +60231,17 @@ function parseNotices(markdown) {
 
 // src/shared-service.ts
 var SharedUsageService = class {
-  constructor(root, credential = githubCredential, fetcher = githubFetch, now = Date.now) {
+  constructor(root, credential = githubCredential, fetcher = githubFetch, now = Date.now, primaryUrl = PRIMARY_SNAPSHOT_URL) {
     this.credential = credential;
     this.fetcher = fetcher;
     this.now = now;
+    this.primaryUrl = primaryUrl;
     this.store = new SharedStore(root, `github:${REPOSITORY}`);
   }
   credential;
   fetcher;
   now;
+  primaryUrl;
   pending;
   store;
   get(refresh = false) {
@@ -60207,14 +60250,14 @@ var SharedUsageService = class {
     });
     return this.pending;
   }
-  async updateNotices(current, headers, signal) {
+  async updateNotices(current, request) {
     const previous = current.notices ?? { cards: [], fetchedAtMs: null, error: null };
     try {
-      const response = await this.fetcher(NOTICE_URL, { headers, redirect: "error", signal });
+      const response = await request();
       if (response.status === 429 || response.status === 403 && response.headers.get("x-ratelimit-remaining") === "0") {
         const reset = Number(response.headers.get("x-ratelimit-reset")) * 1e3 - this.now();
         const wait = response.headers.has("Retry-After") ? retryDelay(response.headers.get("Retry-After"), this.now()) : reset > 0 ? Math.max(MIN_INTERVAL, reset) : INTERVAL;
-        current.nextAllowedAtMs = Math.max(current.nextAllowedAtMs, this.now() + wait);
+        current.githubRetryAtMs = Math.max(current.githubRetryAtMs ?? 0, this.now() + wait);
         current.notices = { ...previous, error: "rate_limited" };
       } else if (response.status === 404) {
         current.notices = { cards: [], fetchedAtMs: this.now(), error: null };
@@ -60242,17 +60285,36 @@ var SharedUsageService = class {
         current.nextRefreshAtMs = start + INTERVAL;
         await this.store.write(current);
         try {
-          const token = await this.credential();
+          let credential;
+          let authenticated = false;
           const headers = {
             Accept: "application/vnd.github.raw+json",
             "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "VegetationQuota",
-            ...token ? { Authorization: `Bearer ${token}` } : {}
+            "User-Agent": "VegetationQuota"
           };
-          const signal = AbortSignal.timeout(15e3);
+          const request = async (url2, timeout) => {
+            if (this.now() < (current.githubRetryAtMs ?? 0)) return new Response("", {
+              status: 429,
+              headers: { "Retry-After": String(Math.ceil((current.githubRetryAtMs - this.now()) / 1e3)) }
+            });
+            const options = { headers, redirect: "error", signal: AbortSignal.timeout(timeout) };
+            const response2 = await this.fetcher(url2, options);
+            if ([401, 403, 404].includes(response2.status) && response2.headers.get("x-ratelimit-remaining") !== "0") {
+              const token = await (credential ??= this.credential());
+              if (token) {
+                authenticated = true;
+                return this.fetcher(url2, {
+                  ...options,
+                  signal: AbortSignal.timeout(timeout),
+                  headers: { ...headers, Authorization: `Bearer ${token}` }
+                });
+              }
+            }
+            return response2;
+          };
           const [snapshotResponse] = await Promise.allSettled([
-            this.fetcher(SNAPSHOT_URL, { headers, redirect: "error", signal }),
-            this.updateNotices(current, headers, signal)
+            readSnapshot(this.primaryUrl, this.fetcher, () => request(SNAPSHOT_URL, 12e3), current.snapshotPublishedAtMs),
+            this.updateNotices(current, () => request(NOTICE_URL, 8e3))
           ]);
           if (snapshotResponse.status === "rejected") throw new Error("snapshot_unavailable");
           const response = snapshotResponse.value;
@@ -60261,16 +60323,19 @@ var SharedUsageService = class {
             current.autoPaused = false;
             const reset = Number(response.headers.get("x-ratelimit-reset")) * 1e3 - this.now();
             current.nextAllowedAtMs = Math.max(current.nextAllowedAtMs, this.now() + (response.headers.has("Retry-After") ? retryDelay(response.headers.get("Retry-After"), this.now()) : reset > 0 ? Math.max(MIN_INTERVAL, reset) : INTERVAL));
+            current.githubRetryAtMs = current.nextAllowedAtMs;
           } else if (response.status === 401 || response.status === 403) {
             current.error = "shared_auth_required";
             current.autoPaused = true;
           } else if (!response.ok) {
-            current.error = response.status === 404 ? token ? "shared_not_ready" : "shared_auth_required" : "shared_unavailable";
+            current.error = response.status === 404 ? authenticated ? "shared_not_ready" : "shared_auth_required" : "shared_unavailable";
             current.autoPaused = current.error === "shared_auth_required";
           } else {
             const text = await response.text();
             if (text.length > 32768) throw new Error("invalid_response");
             const remote = decodePublication(JSON.parse(text));
+            if (remote.publishedAtMs < (current.snapshotPublishedAtMs ?? 0)) throw new Error("older_snapshot");
+            current.snapshotPublishedAtMs = remote.publishedAtMs;
             const networkNow = Date.parse(response.headers.get("Date") ?? "");
             const reference = Number.isFinite(networkNow) && networkNow >= remote.publishedAtMs - 1e3 ? networkNow : null;
             const remoteData = remote.state.data;
@@ -60286,7 +60351,10 @@ var SharedUsageService = class {
           current.error = "shared_unavailable";
           current.autoPaused = false;
         }
-        if (current.notices?.error === "rate_limited" && !current.autoPaused) current.error = "rate_limited";
+        if (!this.primaryUrl && current.notices?.error === "rate_limited" && !current.autoPaused) {
+          current.error = "rate_limited";
+          current.nextAllowedAtMs = Math.max(current.nextAllowedAtMs, current.githubRetryAtMs ?? 0);
+        }
         current.lastCompletedAtMs = this.now();
         current.nextRefreshAtMs = current.error === "rate_limited" ? current.nextAllowedAtMs : this.now() + INTERVAL;
         await this.store.write(current);
@@ -60302,7 +60370,7 @@ var SharedUsageService = class {
 };
 
 // src/server.ts
-var server = new McpServer({ name: "cotemu-usage-ball", version: "0.4.0" });
+var server = new McpServer({ name: "cotemu-usage-ball", version: "0.5.0" });
 var uri = "ui://cotemu-usage-ball/v1";
 var cache = join2(process.env.LOCALAPPDATA || join2(homedir(), ".cache"), "cotemu-usage-ball", "cache");
 var service = new SharedUsageService(cache);

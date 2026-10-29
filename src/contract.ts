@@ -19,6 +19,8 @@ export type ErrorCode = 'missing_key' | 'invalid_key' | 'key_disabled' | 'owner_
   | 'shared_auth_required' | 'shared_not_ready' | 'shared_unavailable' | 'shared_stale' | 'shared_time_unknown' | 'shared_sync_limited';
 
 export interface State {
+  snapshotPublishedAtMs?: number;
+  githubRetryAtMs?: number;
   notices?: NoticeState;
   data: Snapshot | null;
   lastAttemptAtMs: number | null;

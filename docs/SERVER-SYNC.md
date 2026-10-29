@@ -2,7 +2,7 @@
 
 Use a Linux server with systemd and Node.js >=22.19. Members continue reading
 GitHub snapshots and NOTICE.md; their installations and credentials do not change.
-No inbound HTTP port or domain is required. Outbound HTTPS must reach GitHub and
+Publishing alone needs no inbound HTTP port or domain. Outbound HTTPS must reach GitHub and
 cotemu.com. The server provides the regular schedule; GitHub Actions is a backup.
 
 ## Deployment
@@ -83,3 +83,32 @@ The timer controls query attempts, not upstream availability or when Cotemu
 refreshes account statistics. Clients independently read every ten minutes while
 visible, so a successful new sample can take up to another ten minutes to appear.
 Server/network outages and upstream cooldowns can still delay successful updates.
+
+## Optional HTTPS reader
+
+Version 0.5.0 prefers `https://snowsports.top/vegetation-quota/usage.json` and
+falls back to GitHub on failure, a three-second timeout, invalid content or a
+query older than ten minutes plus 30 seconds. It selects the newer publication
+and refuses to replace a previously read snapshot with an older publication.
+Existing 0.4.0 clients keep using GitHub; the normal installer upgrades in place.
+
+The separate `vegetation-quota-http.service` has no credential environment file.
+It reads only the sanitized mirror and projects allowed fields again. Its
+listener binds to the website Docker bridge, currently `172.20.0.1:9817`.
+Verify that bridge address before deploying elsewhere. `scripts/nginx-quota.conf`
+adds the exact HTTPS route to the website's nginx server; it is not a whole-site
+configuration. The route disables caching, accepts GET/HEAD and exposes no file
+listing. Back up the persistent website include and current container include,
+test nginx configuration, then reload. Keep the website source change for future
+image builds; recreating an older image without rebuilding would remove the route.
+The host firewall must allow this private bridge to the listener port. On the
+current server the rule is limited to interface `br-8893425084f5`, source
+`172.20.0.0/16`, destination `172.20.0.1`, TCP port `9817`; it does not expose a
+public listener. Recheck bridge addresses and rules after changing Docker networks.
+
+No GitHub or account credential is sent to this HTTPS endpoint. Notice cards
+still come from GitHub; an unavailable notice document retains the last text.
+The direct route bypasses GitHub for reads, while new upstream queries still
+require the shared GitHub publication lease. It does not remove that dependency.
+The client uses a normal TLS connection to this endpoint and applies the configured
+GitHub proxy only to GitHub. A failed direct connection falls back to GitHub.

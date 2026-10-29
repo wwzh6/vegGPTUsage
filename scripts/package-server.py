@@ -8,14 +8,16 @@ root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', type=Path, required=True)
 output = parser.parse_args().output
-names = ['dist/sync.mjs', 'scripts/server-sync.mjs',
+names = ['dist/sync.mjs', 'dist/serve-snapshot.mjs', 'scripts/server-sync.mjs',
+         'scripts/systemd/vegetation-quota-http.service',
          'scripts/systemd/vegetation-quota-sync.service',
          'scripts/systemd/vegetation-quota-sync.timer',
          'docs/SERVER-SYNC.md', 'THIRD_PARTY_NOTICES.md']
 files = {name: (root / name).read_bytes() for name in names}
 digest = hashlib.sha256(files['dist/sync.mjs']).hexdigest()
 assert digest == json.loads((root / 'runtime.sha256.json').read_text())['dist/sync.mjs']
-files['runtime.sha256.json'] = (json.dumps({'dist/sync.mjs': digest}) + '\n').encode()
+files['runtime.sha256.json'] = (json.dumps({name: hashlib.sha256(files[name]).hexdigest()
+    for name in ('dist/sync.mjs', 'dist/serve-snapshot.mjs')}) + '\n').encode()
 manifest = {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}
 files['files.sha256.json'] = (json.dumps(manifest, indent=2) + '\n').encode()
 output.parent.mkdir(parents=True, exist_ok=True)

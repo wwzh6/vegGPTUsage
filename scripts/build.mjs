@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 await mkdir('dist', { recursive: true });
 const server = await build({ entryPoints: ['src/server.ts'], bundle: true, platform: 'node', target: 'node22', format: 'esm', outfile: 'dist/server.mjs', metafile: true,
   banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);' } });
-const helpers = await build({ entryPoints: ['src/sync.ts', 'src/check-access.ts'], bundle: true, platform: 'node', target: 'node22', format: 'esm', outdir: 'dist', outExtension: { '.js': '.mjs' }, metafile: true,
+const helpers = await build({ entryPoints: ['src/sync.ts', 'src/check-access.ts', 'src/serve-snapshot.ts'], bundle: true, platform: 'node', target: 'node22', format: 'esm', outdir: 'dist', outExtension: { '.js': '.mjs' }, metafile: true,
   banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);' } });
 const app = await build({ entryPoints: ['src/ui/app.ts'], bundle: true, platform: 'browser', target: 'es2022',
   format: 'esm', outfile: 'app.js', write: false, minify: true, metafile: true });

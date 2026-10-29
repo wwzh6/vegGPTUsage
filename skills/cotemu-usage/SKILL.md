@@ -5,7 +5,7 @@ description: Open 植被组额度查询 to view the group's centrally synchroniz
 
 Call `open_usage_ball` with empty arguments to open the panel. For a text check,
 call `get_usage`; use `refresh: true` only when explicitly asked to refresh.
-A refresh reads the GitHub snapshot, not the upstream account API.
+A refresh reads the HTTPS snapshot with GitHub fallback, not the upstream account API.
 
 Private repositories need read access through local GitHub login. Public repositories support anonymous reads. Do not ask them
 for COTEMU_API_KEY. The administrator maintains the central publisher; follow

@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { ProxyAgent, fetch as undiciFetch } from 'undici';
 
-import { REPOSITORY } from './settings.js';
+import { REPOSITORY, PRIMARY_SNAPSHOT_URL } from './settings.js';
 export { REPOSITORY, SNAPSHOT_URL } from './settings.js';
 
 function run(file: string, args: string[], input?: string): Promise<string> {
@@ -41,6 +41,8 @@ async function proxyAddress(): Promise<string | undefined> {
 
 let dispatcher: Promise<ProxyAgent | undefined> | undefined;
 export const githubFetch: typeof fetch = async (input, init) => {
+  if (String(input) === PRIMARY_SNAPSHOT_URL)
+    return await undiciFetch(input as string, init as Parameters<typeof undiciFetch>[1]) as unknown as Response;
   dispatcher ??= proxyAddress().then(address => address ? new ProxyAgent(address) : undefined);
   const agent = await dispatcher;
   return await undiciFetch(input as Parameters<typeof undiciFetch>[0],

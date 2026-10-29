@@ -1,0 +1,22 @@
+[Unit]
+Description=Vegetation sanitized snapshot reader
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=vegetation-quota
+Group=vegetation-quota
+Environment=VEGETATION_HTTP_HOST=172.20.0.1
+Environment=VEGETATION_HTTP_PORT=9817
+ExecStart=/opt/vegetation-quota/runtime/bin/node /opt/vegetation-quota/current/dist/serve-snapshot.mjs
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

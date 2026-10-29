@@ -1,6 +1,6 @@
 {
   "name": "cotemu-usage-ball",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Vegetation Group shared seven-day account usage ring.",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",

@@ -10,7 +10,7 @@ account key to clients. Only the administrator provisions central synchronizatio
 using `docs/SERVER-SYNC.md` or the GitHub fallback in `docs/ADMIN-SETUP.md`. Do not inspect
 unrelated credentials or change model/provider settings or repository visibility.
 
-The client reads sanitized snapshots from quota-data and text cards from main/NOTICE.md. A click
+The client prefers the sanitized HTTPS snapshot, with quota-data as fallback, and reads text cards from main/NOTICE.md. A click
 reads the latest snapshot; it does not query the upstream API or trigger Actions.
 Scheduled GitHub synchronization may be delayed. Preserve stale/unknown states.
 

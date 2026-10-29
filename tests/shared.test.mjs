@@ -22,17 +22,17 @@ function response(value = published(), date = NOW) {
 async function setup(t, fetcher, credential = async () => 'synthetic-github-reader', notices) {
   const root = await mkdtemp(join(tmpdir(), 'vegetation-shared-')); let time = NOW;
   t.after(() => rm(root, { recursive: true, force: true }));
-  const service = new SharedUsageService(root, credential, withNotices(fetcher, notices), () => time);
+  const service = new SharedUsageService(root, credential, withNotices(fetcher, notices), () => time, null);
   return { service, root, setTime: value => { time = value; } };
 }
 
-test('GitHub reader sends only GitHub credentials to the fixed snapshot URL', async t => {
+test('public GitHub reader avoids credential lookup and uses the fixed snapshot URL', async t => {
   const seen = [];
   const { service } = await setup(t, async (url, options) => { seen.push({ url, options }); return response(); });
   const result = await service.get(true);
   assert.equal(result.data.usedPercent, 40);
   assert.equal(seen[0].url, 'https://api.github.com/repos/wwzh6/vegGPTUsage/contents/usage.json?ref=quota-data');
-  assert.equal(seen[0].options.headers.Authorization, 'Bearer synthetic-github-reader');
+  assert.equal(seen[0].options.headers.Authorization, undefined);
   assert.equal(seen[0].options.redirect, 'error');
   assert.ok(!JSON.stringify(result).includes('synthetic-github-reader'));
   assert.ok(!(await readFile(join(service.store.directory, 'state.json'), 'utf8')).includes('synthetic-github-reader'));
@@ -99,7 +99,7 @@ test('shared refreshes coalesce across instances and respect ten-minute and fift
   let requests = 0;
   const fetcher = async () => { requests++; return response(); };
   const { service, root, setTime } = await setup(t, fetcher);
-  const other = new SharedUsageService(root, async () => 'synthetic-github-reader', withNotices(fetcher), () => NOW);
+  const other = new SharedUsageService(root, async () => 'synthetic-github-reader', withNotices(fetcher), () => NOW, null);
   await Promise.all([service.get(true), other.get(true), service.get(true)]);
   assert.equal(requests, 1);
   setTime(NOW + 14_999); await service.get(true); assert.equal(requests, 1);
@@ -115,7 +115,7 @@ test('GitHub rate limits apply to manual reads and authentication can recover ma
   setTime(NOW + 119_999); await service.get(true); assert.equal(requests, 1);
   setTime(NOW + 120_000); next = new Response('', { status: 401 });
   assert.equal((await service.get(true)).query.autoPaused, true);
-  setTime(NOW + INTERVAL); await service.get(false); assert.equal(requests, 2);
+  setTime(NOW + INTERVAL); await service.get(false); assert.equal(requests, 3);
   next = response(); assert.equal((await service.get(true)).query.autoPaused, false);
 });
 
@@ -145,7 +145,7 @@ test('notices refresh with quota, share throttling and cache, and survive docume
   let requests = 0; let document = '## Group\nFirst'; let failure = false;
   const {service, root, setTime} = await setup(t, async () => response(), undefined, async (url, options) => {
     assert.equal(url, 'https://api.github.com/repos/wwzh6/vegGPTUsage/contents/NOTICE.md?ref=main');
-    assert.equal(options.redirect, 'error'); assert.equal(options.headers.Authorization, 'Bearer synthetic-github-reader');
+    assert.equal(options.redirect, 'error'); assert.equal(options.headers.Authorization, undefined);
     requests++; return failure ? new Response('private error', {status:500}) : new Response(document);
   });
   assert.equal((await service.get(true)).notices.cards[0].text, 'First');
@@ -157,7 +157,7 @@ test('notices refresh with quota, share throttling and cache, and survive docume
   assert.equal(failed.notices.cards[0].text,'Second'); assert.equal(failed.notices.error,'unavailable');
   assert.equal(failed.query.error,null);
   assert.ok(!JSON.stringify(failed).includes('private error'));
-  const other=new SharedUsageService(root,async()=>{throw Error('must use cache');},async()=>{throw Error('must use cache');},()=>NOW+MIN_INTERVAL*2+1);
+  const other=new SharedUsageService(root,async()=>{throw Error('must use cache');},async()=>{throw Error('must use cache');},()=>NOW+MIN_INTERVAL*2+1, null);
   assert.deepEqual((await other.get(false)).notices,failed.notices);
   setTime(NOW+INTERVAL*2); failure=false; document='';
   assert.deepEqual((await service.get(false)).notices.cards,[]);
