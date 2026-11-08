@@ -1,1 +1,1 @@
-{"version":1,"publishedAtMs":1794147007439,"state":{"data":null,"lastAttemptAtMs":1794147006913,"lastCompletedAtMs":1794147007438,"nextAllowedAtMs":1794147021913,"nextRefreshAtMs":1794147607438,"autoPaused":false,"error":"unbound"},"publisherLease":{"owner":"439ecedd-534f-45a4-87f6-6ddb96911959","expiresAtMs":1794147723909}}
+{"version":1,"publishedAtMs":1794147607372,"state":{"data":null,"lastAttemptAtMs":1794147607055,"lastCompletedAtMs":1794147607371,"nextAllowedAtMs":1794147622055,"nextRefreshAtMs":1794148207371,"autoPaused":false,"error":"network_error"}}
